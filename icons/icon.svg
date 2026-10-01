@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#1f6f68"/>
+  <text x="256" y="350" text-anchor="middle" font-family="Georgia, 'Palatino Linotype', serif" font-size="300" font-weight="700" fill="#f6f3ec">Ä</text>
+  <g fill="none" stroke="#f6f3ec" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" opacity="0.9">
+    <path d="M176 410h160"/>
+    <path d="m316 390 20 20-20 20"/>
+  </g>
+</svg>
