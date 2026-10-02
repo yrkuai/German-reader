@@ -91,17 +91,19 @@ export function renderReader(view, id, ctx) {
 
   // ---------- 顯示／隱藏中文翻譯 ----------
   const sentenceList = h('ol', { class: 'sentences' }, cards);
+  // 「中」按鈕：填滿＝顯示翻譯，空心加刪除線＝隱藏翻譯
   const zhToggle = h('button', {
-    class: 'switch', type: 'button', role: 'switch',
+    class: 'zh-toggle', type: 'button', 'aria-label': '顯示中文翻譯',
     onclick: () => {
       settings.showZh = !settings.showZh;
       saveSettings({ ...loadSettings(), showZh: settings.showZh });
       applyZh();
     },
-  }, h('span', { class: 'switch-label' }, '翻譯'), h('span', { class: 'switch-track', 'aria-hidden': 'true' }, h('span', { class: 'switch-thumb' })));
+  }, '中');
   function applyZh() {
     sentenceList.classList.toggle('hide-zh', !settings.showZh);
-    zhToggle.setAttribute('aria-checked', String(settings.showZh));
+    zhToggle.setAttribute('aria-pressed', String(settings.showZh));
+    zhToggle.title = settings.showZh ? '隱藏中文翻譯' : '顯示中文翻譯';
   }
   ctx.addBarAction(zhToggle);
   applyZh();
