@@ -308,9 +308,9 @@ select.input { appearance: auto; }
 
 .de {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 400;
-  line-height: 1.6;
+  line-height: 1.7;
   letter-spacing: -0.015em;
   overflow-wrap: break-word;
 }
@@ -631,5 +631,5 @@ select.input { appearance: auto; }
 @media (min-width: 768px) {
   .view { padding-top: 32px; }
   .page-title { font-size: 40px; }
-  .de { font-size: 22px; }
+  .de { font-size: 20px; }
 }
