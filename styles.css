@@ -312,7 +312,7 @@ select.input { appearance: auto; }
 
 .sentence {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   padding: 14px; /* 句號＋文字視為內容，四邊內距一致 */
   border-radius: var(--r-xl);
   cursor: pointer;
@@ -328,12 +328,12 @@ select.input { appearance: auto; }
 
 .sentence-no {
   flex: none;
-  min-width: 1.8em;
+  min-width: 1.3em; /* 剛好放得下兩位數；靠右對齊，數字和德文固定相距 8px */
   padding-top: 5px;
   color: var(--ink-muted);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
-  text-align: left;
+  text-align: right;
 }
 .sentence.is-current .sentence-no { color: var(--ink); font-weight: 600; }
 .sentence.is-playing .sentence-no { color: var(--accent); }
