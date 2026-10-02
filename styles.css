@@ -322,9 +322,8 @@ select.input { appearance: auto; }
 @media (hover: hover) {
   .sentence:hover { background: var(--surface-1); }
 }
-/* 目前的句子：淺灰底；播放中底色不變，只加藍色外框 */
+/* 目前的句子：淺灰底（播放中也一樣，不另外標示） */
 .sentence.is-current { background: var(--surface-1); }
-.sentence.is-playing { background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--accent); }
 
 .sentence-no {
   flex: none;
@@ -336,7 +335,6 @@ select.input { appearance: auto; }
   text-align: right;
 }
 .sentence.is-current .sentence-no { color: var(--ink); font-weight: 600; }
-.sentence.is-playing .sentence-no { color: var(--accent); }
 
 .sentence-body { flex: 1; min-width: 0; }
 
