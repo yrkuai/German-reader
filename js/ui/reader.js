@@ -56,7 +56,7 @@ export function renderReader(view, id, ctx) {
         updateSpeedButtons();
         player.speedChanged();
       },
-    }, formatRate(rate)),
+    }, `${formatRate(rate)}x`),
   );
 
   const firstBtn = h('button', { class: 'ctrl', type: 'button', 'aria-label': '回到第一句', onclick: () => player.goTo(0) }, icon('first'));
