@@ -91,7 +91,7 @@ export function renderReader(view, id, ctx) {
 
   // ---------- 顯示／隱藏中文翻譯 ----------
   const sentenceList = h('ol', { class: 'sentences' }, cards);
-  // 翻譯按鈕：填滿＝顯示翻譯，灰色加斜線＝隱藏翻譯
+  // 翻譯按鈕：填滿＝顯示翻譯，灰色＝隱藏翻譯
   const zhToggle = h('button', {
     class: 'zh-toggle', type: 'button', 'aria-label': '顯示中文翻譯',
     onclick: () => {
