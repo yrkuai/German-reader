@@ -355,7 +355,7 @@ select.input { appearance: auto; }
 .zh {
   margin: 4px 0 0;
   color: var(--ink-muted);
-  font-size: 16px;
+  font-size: 17px;
   line-height: 1.6;
   letter-spacing: 0;
 }
@@ -666,5 +666,4 @@ select.input { appearance: auto; }
 @media (min-width: 768px) {
   .view { padding-top: 32px; }
   .de { font-size: var(--de-size-wide); }
-  .zh { font-size: 17px; }
 }
