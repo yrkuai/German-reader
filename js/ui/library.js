@@ -35,7 +35,7 @@ export function renderLibrary(view, ctx) {
         return h('li', {},
           h('a', { class: 'article-item', href: `#/read/${encodeURIComponent(a.id)}` },
             h('span', { class: 'article-title' }, a.title),
-            h('span', { class: 'article-meta' }, `${a.sentences.length} 句 · ${status}`),
+            h('span', { class: 'article-meta' }, `${a.sentences.length} 句 · ${status} · ${formatDate(a.createdAt)}`),
           ),
         );
       }),
@@ -110,6 +110,13 @@ export function renderNewArticle(view, ctx) {
 
   view.append(step1, step2);
   textInput.focus();
+}
+
+// 2026/10/02
+function formatDate(ms) {
+  const d = new Date(ms);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())}`;
 }
 
 function truncate(text, max) {

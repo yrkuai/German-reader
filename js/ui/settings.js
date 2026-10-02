@@ -1,6 +1,6 @@
 import { h } from './dom.js';
 import { loadSettings, saveSettings } from '../storage.js';
-import { applyTheme } from '../theme.js';
+import { applyTheme, applyDeSize } from '../theme.js';
 import { speechSupported, getGermanVoices, onVoicesChanged, speakOnce, cancelSpeech } from '../speech.js';
 
 const SAMPLE = 'Guten Tag! Ich lerne Deutsch, und das macht mir viel Spaß.';
@@ -66,11 +66,34 @@ export function renderSettings(view, ctx) {
   };
   showTheme();
 
+  // ---------- 德文字級 ----------
+  const sizeButtons = [['s', '小'], ['m', '中'], ['l', '大']].map(([value, label]) =>
+    h('button', {
+      class: 'speed', type: 'button', role: 'radio', 'data-size-value': value,
+      onclick: () => {
+        settings.deSize = value;
+        save();
+        applyDeSize(value);
+        showSize();
+      },
+    }, label),
+  );
+  const showSize = () => {
+    for (const b of sizeButtons) b.setAttribute('aria-checked', String(b.dataset.sizeValue === settings.deSize));
+  };
+  showSize();
+
   view.append(
     h('section', { class: 'card stack' },
       h('div', { class: 'row row-between' },
         h('h2', { class: 'card-title' }, '外觀'),
         h('div', { class: 'speed-group', role: 'radiogroup', 'aria-label': '外觀' }, themeButtons),
+      ),
+    ),
+    h('section', { class: 'card stack' },
+      h('div', { class: 'row row-between' },
+        h('h2', { class: 'card-title' }, '德文字級'),
+        h('div', { class: 'speed-group', role: 'radiogroup', 'aria-label': '德文字級' }, sizeButtons),
       ),
     ),
     h('section', { class: 'card stack' },

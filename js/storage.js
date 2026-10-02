@@ -11,6 +11,7 @@ export const DEFAULT_SETTINGS = {
   voiceURI: null,
   rate: 1.0,          // 語速倍率，選項見 speech.js 的 RATES
   theme: 'auto',      // 'auto' 跟著裝置 | 'light' | 'dark'
+  deSize: 'm',        // 文章中德文句子的字級 's' | 'm' | 'l'
   pauseMs: 1200,
   showZh: true,
 };

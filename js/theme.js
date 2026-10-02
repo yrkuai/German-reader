@@ -3,6 +3,13 @@
 
 const BAR_COLORS = { light: '#ffffff', dark: '#090909' };
 
+// 德文字級：中是預設，不加屬性
+export function applyDeSize(size) {
+  const root = document.documentElement;
+  if (size === 's' || size === 'l') root.dataset.deSize = size;
+  else delete root.dataset.deSize;
+}
+
 export function applyTheme(theme) {
   const root = document.documentElement;
   const fixed = theme === 'light' || theme === 'dark';
