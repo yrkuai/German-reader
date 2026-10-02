@@ -1,6 +1,7 @@
 import { h } from './dom.js';
 import { listArticles, saveArticle, createArticle, deleteArticle } from '../storage.js';
 import { createSwipeGroup } from './swipe.js';
+import { icon } from './icons.js';
 import { showToast } from './toast.js';
 import { splitSentences } from '../segmenter.js';
 
@@ -65,7 +66,7 @@ export function renderLibrary(view, ctx) {
       h('span', { class: 'article-title' }, a.title),
       h('span', { class: 'article-meta' }, `${a.sentences.length} 句 · ${status} · ${formatDate(a.createdAt)}`),
     );
-    const action = h('button', { class: 'swipe-delete', type: 'button', 'aria-label': `刪除「${a.title}」` }, '刪除');
+    const action = h('button', { class: 'swipe-delete', type: 'button', 'aria-label': `刪除「${a.title}」` }, icon('trash'));
     const li = h('li', { class: 'swipe-row' }, action, content);
     action.addEventListener('click', () => remove(a, li));
     swipe.attach(li, content, action);

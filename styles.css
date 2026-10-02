@@ -301,14 +301,17 @@ select.input { appearance: auto; }
   padding: 0 18px;
   border: 0;
   border-radius: var(--r-pill);
+  display: grid;
+  place-items: center;
   transform: translateY(-50%);
-  background: #d92d20; /* 深淺模式都用同一個深紅，白字才看得清楚 */
+  background: #d92d20; /* 深淺模式都用同一個深紅，白色圖示才看得清楚 */
   color: #fff;
   font: inherit;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
 }
+.swipe-delete .icon svg { width: 20px; height: 20px; }
 .article-item {
   position: relative;
   display: flex;
