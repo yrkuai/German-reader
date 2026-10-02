@@ -3,7 +3,8 @@ import { icon } from './icons.js';
 
 // 從畫面下方滑出的單字抽屜。點遮罩、按關閉、按 Esc 或往下滑都會關閉。
 // 回傳 close()。
-export function openWordSheet({ word, meaning, onSpeak, onClose }) {
+// grammar：名詞的冠詞／複數或動詞原形（沒有就不顯示）
+export function openWordSheet({ word, grammar, meaning, onSpeak, onClose }) {
   const previousFocus = document.activeElement;
 
   const closeBtn = h('button', { class: 'sheet-close', type: 'button', 'aria-label': '關閉' }, '×');
@@ -14,6 +15,7 @@ export function openWordSheet({ word, meaning, onSpeak, onClose }) {
       h('button', { class: 'ctrl sheet-speak', type: 'button', 'aria-label': '再唸一次', onclick: onSpeak }, icon('speaker')),
       closeBtn,
     ),
+    grammar ? h('p', { class: 'sheet-grammar' }, grammar) : null,
     meaning
       ? h('p', { class: 'sheet-meaning' }, meaning)
       : h('p', { class: 'sheet-meaning is-empty' }, '沒有翻譯資料。先匯入這篇文章的翻譯，就能看到單字的意思。'),

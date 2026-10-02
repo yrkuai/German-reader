@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  parseResponse, mergeTranslations, untranslated, formatRanges, lookupMeaning, ImportError,
+  parseResponse, mergeTranslations, untranslated, formatRanges, lookupWord, grammarLine, normalizeWord, ImportError,
 } from '../js/importer.js';
 import { makeBatches, buildPrompt } from '../js/prompt.js';
 
@@ -78,13 +78,48 @@ test('formatRanges', () => {
   assert.equal(formatRanges([]), '');
 });
 
-test('lookupMeaning：原字形、忽略大小寫、撇號', () => {
+test('lookupWord：原字形、忽略大小寫、撇號；舊格式（字串）照常可用', () => {
   const words = { Ich: '我', "geht's": '還好嗎' };
-  assert.equal(lookupMeaning(words, 'Ich'), '我');
-  assert.equal(lookupMeaning(words, 'ich'), '我');
-  assert.equal(lookupMeaning(words, 'geht’s'), '還好嗎');
-  assert.equal(lookupMeaning(words, 'du'), null);
-  assert.equal(lookupMeaning(null, 'Ich'), null);
+  assert.deepEqual(lookupWord(words, 'Ich'), { meaning: '我', type: null });
+  assert.equal(lookupWord(words, 'ich').meaning, '我');
+  assert.equal(lookupWord(words, 'geht’s').meaning, '還好嗎');
+  assert.equal(lookupWord(words, 'du'), null);
+  assert.equal(lookupWord(null, 'Ich'), null);
+});
+
+test('新格式：名詞與動詞的資料會被保留，不合格的欄位被丟掉', () => {
+  const raw = JSON.stringify([{ n: 1, zh: '一', w: {
+    Dinge: { t: 'n', m: '東西', l: 'Ding', g: 'das', pl: 'Dinge' },
+    Milch: { t: 'n', m: '牛奶', l: 'Milch', g: 'Die', pl: '' },
+    Leute: { t: 'n', m: '人們', l: 'Leute', g: 'pl' },
+    ging: { t: 'v', m: '去', l: 'gehen' },
+    Haus: { t: 'n', m: '房子', g: 'xyz', pl: 5 },
+    schnell: { t: 'adj', m: '快' },
+    leer: { t: 'n', m: '' },
+    und: '和',
+  } }]);
+  const w = parseResponse(raw, 1).items[0].words;
+  assert.deepEqual(w.Dinge, { m: '東西', t: 'n', l: 'Ding', g: 'das', pl: 'Dinge' });
+  assert.equal(w.Milch.g, 'die');
+  assert.deepEqual(w.Haus, { m: '房子', t: 'n' });
+  assert.equal(w.schnell, '快');
+  assert.equal(w.leer, undefined);
+  assert.equal(w.und, '和');
+  assert.equal(normalizeWord(null), null);
+});
+
+test('grammarLine：名詞冠詞與複數、動詞原形', () => {
+  const g = (entry, word) => grammarLine(lookupWord({ [word]: normalizeWord(entry) }, word), word);
+  assert.equal(g({ t: 'n', m: '東西', l: 'Ding', g: 'das', pl: 'Dinge' }, 'Dinge'), 'das Ding · 複數 die Dinge');
+  assert.equal(g({ t: 'n', m: '牛奶', l: 'Milch', g: 'die', pl: '' }, 'Milch'), 'die Milch · 無複數');
+  assert.equal(g({ t: 'n', m: '人們', l: 'Leute', g: 'pl' }, 'Leuten'), 'die Leute · 只有複數');
+  assert.equal(g({ t: 'n', m: '房子', g: 'das' }, 'Haus'), 'das Haus');
+  assert.equal(g({ t: 'n', m: '房子' }, 'Haus'), '');
+  assert.equal(g({ t: 'v', m: '去', l: 'gehen' }, 'ging'), '原形 gehen');
+  assert.equal(g({ t: 'v', m: '買', l: 'kaufen' }, 'kaufen'), '');
+  assert.equal(g({ t: 'v', m: '打電話', l: 'anrufen' }, 'an'), '原形 anrufen');
+  assert.equal(g('和', 'und'), '');
+  assert.equal(grammarLine(null, 'x'), '');
 });
 
 test('makeBatches 與 buildPrompt', () => {
@@ -93,4 +128,6 @@ test('makeBatches 與 buildPrompt', () => {
   const prompt = buildPrompt(article.sentences, 2, 3);
   assert.match(prompt, /2\. Das ist gut\.\n3\. Wir gehen\.$/);
   assert.doesNotMatch(prompt, /Ich rufe/);
+  assert.match(prompt, /"t":"n"/);
+  assert.match(prompt, /"t":"v"/);
 });

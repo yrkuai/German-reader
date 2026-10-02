@@ -64,7 +64,8 @@ export function parseResponse(raw, sentenceCount) {
     if (item.w && typeof item.w === 'object' && !Array.isArray(item.w)) {
       words = {};
       for (const [k, v] of Object.entries(item.w)) {
-        if (typeof v === 'string' && v.trim()) words[k.trim()] = v.trim();
+        const entry = normalizeWord(v);
+        if (entry) words[k.trim()] = entry;
       }
       if (!Object.keys(words).length) words = null;
     }
@@ -102,10 +103,36 @@ export function formatRanges(numbers) {
   return parts.join('、');
 }
 
+// 單字資料：其他詞類存成中文字串；名詞、動詞存成物件
+//   名詞 { m, t: 'n', l: 單數原形, g: 'der'|'die'|'das'|'pl', pl: 複數形（'' 代表無複數） }
+//   動詞 { m, t: 'v', l: 原形 }
+// 不合格的欄位直接丟掉，至少保留中文意思
+const GENDERS = ['der', 'die', 'das', 'pl'];
+const str = (v) => (typeof v === 'string' ? v.trim() : '');
+
+export function normalizeWord(value) {
+  if (typeof value === 'string') return value.trim() || null;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+  const m = str(value.m);
+  if (!m) return null;
+  const t = value.t === 'n' || value.t === 'v' ? value.t : null;
+  if (!t) return m;
+
+  const entry = { m, t };
+  const l = str(value.l);
+  if (l) entry.l = l;
+  if (t === 'n') {
+    const g = str(value.g).toLowerCase();
+    if (GENDERS.includes(g)) entry.g = g;
+    if (typeof value.pl === 'string') entry.pl = value.pl.trim();
+  }
+  return entry;
+}
+
 const normalizeApostrophe = (s) => s.replace(/[’‘]/g, "'");
 
-// 先用原字形查，再忽略大小寫查
-export function lookupMeaning(words, word) {
+function findEntry(words, word) {
   if (!words) return null;
   if (words[word]) return words[word];
   const target = normalizeApostrophe(word).toLowerCase();
@@ -113,4 +140,31 @@ export function lookupMeaning(words, word) {
     if (normalizeApostrophe(k).toLowerCase() === target) return v;
   }
   return null;
+}
+
+// 先用原字形查，再忽略大小寫查。回傳
+// { meaning, type: 'n'|'v'|null, lemma, gender, plural } 或 null
+export function lookupWord(words, word) {
+  const entry = findEntry(words, word);
+  if (!entry) return null;
+  if (typeof entry === 'string') return { meaning: entry, type: null };
+  return { meaning: entry.m, type: entry.t, lemma: entry.l, gender: entry.g, plural: entry.pl };
+}
+
+// 單字抽屜上方的文法說明；沒有可顯示的就回傳 ''
+//   名詞：das Ding · 複數 die Dinge ／ die Milch · 無複數 ／ die Leute · 只有複數
+//   動詞：原形 gehen（和句中形態相同時不顯示）
+export function grammarLine(info, word) {
+  if (!info) return '';
+  if (info.type === 'n') {
+    if (info.gender === 'pl') return `die ${info.lemma || word} · 只有複數`;
+    const singular = [info.gender, info.lemma || word].filter(Boolean).join(' ');
+    if (info.plural === '') return `${singular} · 無複數`;
+    if (info.plural) return `${singular} · 複數 die ${info.plural}`;
+    return info.gender ? singular : '';
+  }
+  if (info.type === 'v' && info.lemma && info.lemma.toLowerCase() !== word.toLowerCase()) {
+    return `原形 ${info.lemma}`;
+  }
+  return '';
 }

@@ -621,6 +621,7 @@ select.input { appearance: auto; }
   line-height: 1;
   cursor: pointer;
 }
+.sheet-grammar { margin: 8px 0 0; color: var(--ink-muted); font-size: 16px; font-weight: 500; letter-spacing: -0.01em; }
 .sheet-meaning { margin: 14px 0 0; font-size: 18px; line-height: 1.5; }
 .sheet-meaning.is-empty { color: var(--ink-muted); font-size: 14px; }
 

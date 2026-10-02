@@ -3,7 +3,7 @@ import { icon } from './icons.js';
 import { getArticle, deleteArticle, setLastIndex, loadSettings, saveSettings } from '../storage.js';
 import { tokenize } from '../segmenter.js';
 import { createPlayer, RATES, formatRate, speechSupported, getGermanVoices, onVoicesChanged } from '../speech.js';
-import { untranslated, formatRanges, lookupMeaning } from '../importer.js';
+import { untranslated, formatRanges, lookupWord, grammarLine } from '../importer.js';
 import { openWordSheet } from './wordSheet.js';
 
 export function renderReader(view, id, ctx) {
@@ -111,9 +111,11 @@ export function renderReader(view, id, ctx) {
     closeSheet?.();
     el.classList.add('is-active');
     player.speakWord(word);
+    const info = lookupWord(sentence.words, word);
     closeSheet = openWordSheet({
       word,
-      meaning: lookupMeaning(sentence.words, word),
+      grammar: grammarLine(info, word),
+      meaning: info?.meaning,
       onSpeak: () => player.speakWord(word),
       onClose: () => {
         el.classList.remove('is-active');
