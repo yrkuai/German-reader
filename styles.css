@@ -335,8 +335,9 @@ select.input { appearance: auto; }
 }
 .hide-zh .zh { display: none; }
 
-/* 「中」按鈕：開啟＝主色填滿；關閉＝灰底、灰字加刪除線 */
+/* 翻譯按鈕：開啟＝主色填滿；關閉＝灰底、灰色圖示加一條斜線 */
 .zh-toggle {
+  position: relative;
   display: grid;
   place-items: center;
   flex: none;
@@ -347,17 +348,26 @@ select.input { appearance: auto; }
   border-radius: 50%;
   background: var(--surface-1);
   color: var(--ink-muted);
-  font: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  text-decoration: line-through;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: background 0.15s, color 0.15s;
 }
+.zh-toggle .icon svg { width: 20px; height: 20px; }
 .zh-toggle:hover { background: var(--surface-2); }
+.zh-toggle[aria-pressed="false"]::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 26px;
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
+  box-shadow: 0 0 0 1.5px var(--surface-1);
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
 .zh-toggle[aria-pressed="true"],
-.zh-toggle[aria-pressed="true"]:hover { background: var(--primary); color: var(--on-primary); text-decoration: none; }
+.zh-toggle[aria-pressed="true"]:hover { background: var(--primary); color: var(--on-primary); }
 
 .article-actions {
   display: flex;

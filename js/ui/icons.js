@@ -5,6 +5,7 @@ const PATHS = {
   prev: '<path d="M6.5 6v12"/><path d="M18 6.5 9.5 12l8.5 5.5z" fill="currentColor"/>',
   next: '<path d="M17.5 6v12"/><path d="M6 6.5 14.5 12 6 17.5z" fill="currentColor"/>',
   repeat: '<path d="m17 2 3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12"/><path d="m7 22-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/>',
+  translate: '<path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/>',
   speaker: '<path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/>',
 };
 

@@ -91,7 +91,7 @@ export function renderReader(view, id, ctx) {
 
   // ---------- 顯示／隱藏中文翻譯 ----------
   const sentenceList = h('ol', { class: 'sentences' }, cards);
-  // 「中」按鈕：填滿＝顯示翻譯，空心加刪除線＝隱藏翻譯
+  // 翻譯按鈕：填滿＝顯示翻譯，灰色加斜線＝隱藏翻譯
   const zhToggle = h('button', {
     class: 'zh-toggle', type: 'button', 'aria-label': '顯示中文翻譯',
     onclick: () => {
@@ -99,7 +99,7 @@ export function renderReader(view, id, ctx) {
       saveSettings({ ...loadSettings(), showZh: settings.showZh });
       applyZh();
     },
-  }, '中');
+  }, icon('translate'));
   function applyZh() {
     sentenceList.classList.toggle('hide-zh', !settings.showZh);
     zhToggle.setAttribute('aria-pressed', String(settings.showZh));
