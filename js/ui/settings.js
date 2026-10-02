@@ -110,7 +110,6 @@ export function renderSettings(view, ctx) {
       h('h2', { class: 'card-title' }, '德文語音'),
       speechSupported ? null : h('p', { class: 'notice' }, '這個瀏覽器不支援語音播放，請改用 Chrome、Edge 或 Safari。'),
       h('div', { class: 'row' }, voiceSelect, testBtn),
-      h('p', { class: 'hint' }, '標示「需網路」的語音音質通常比較好，但沒有網路時無法使用。'),
     ),
     h('section', { class: 'settings-section stack' },
       h('div', { class: 'row row-between' }, h('h2', { class: 'card-title' }, '單句重複的停頓'), pauseLabel),
