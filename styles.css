@@ -47,8 +47,7 @@
 
   --player-h: 0px; /* 底部播放列的高度，由 reader.js 設定 */
 
-  /* 左右邊距：分隔線式頁面（我的文章、設定、新增文章）20px；
-     卡片式頁面（閱讀、取得翻譯）卡片本身有內距，用 16px。標題列跟著頁面走 */
+  /* 左右邊距：全站統一 20px，內容與標題列的按鈕對齊同一條線 */
   --gutter: 20px;
 
   /* 德文句子字級（設定頁「德文字級」：小／中／大），手機／桌機 */
@@ -98,7 +97,6 @@
   color-scheme: dark;
 }
 
-:root[data-layout="cards"] { --gutter: 16px; }
 :root[data-de-size="s"] { --de-size: 16px; --de-size-wide: 18px; }
 :root[data-de-size="l"] { --de-size: 21px; --de-size-wide: 23px; }
 

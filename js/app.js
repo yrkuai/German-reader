@@ -56,9 +56,6 @@ function route() {
   window.scrollTo(0, 0);
 
   const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean);
-  // 卡片式頁面用比較窄的左右邊距（見 styles.css 的 --gutter）
-  if (parts[0] === 'read' || parts[0] === 'translate') document.documentElement.dataset.layout = 'cards';
-  else delete document.documentElement.dataset.layout;
   if (parts[0] === 'new') cleanup = renderNewArticle(view, ctx);
   else if (parts[0] === 'settings') cleanup = renderSettings(view, ctx);
   else if (parts[0] === 'translate' && parts[1]) cleanup = renderTranslate(view, decodeURIComponent(parts[1]), ctx);
