@@ -264,19 +264,23 @@ select.input { appearance: auto; }
 .empty.spotlight .muted { color: rgb(255 255 255 / 0.85); font-size: 16px; }
 .empty.spotlight .btn-primary { background: #fff; color: #000; }
 
-.article-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+/* 文章列表：用分隔線區分，不用卡片 */
+.article-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.article-list li { border-bottom: 1px solid var(--hairline); }
+.article-list li:last-child { border-bottom: 0; }
 .article-item {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 18px 20px;
-  border-radius: var(--r-xl);
-  background: var(--surface-1);
+  padding: 16px 0;
   color: var(--ink);
   text-decoration: none;
-  transition: background 0.15s;
+  transition: opacity 0.15s;
 }
-.article-item:hover { background: var(--surface-2); }
+@media (hover: hover) {
+  .article-item:hover { opacity: 0.7; }
+}
+.article-item:active { opacity: 0.6; }
 .article-title {
   min-width: 0;
   font-size: 18px;
