@@ -505,6 +505,8 @@ select.input { appearance: auto; }
 }
 .speed:hover { color: var(--ink); }
 .speed[aria-checked="true"] { background: var(--primary); color: var(--on-primary); }
+/* 播放列的語速按鈕維持 13px，讓四個選項和狀態文字排得進同一行 */
+.player .speed { font-size: 13px; }
 .speed:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .player-controls {
