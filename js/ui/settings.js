@@ -1,4 +1,5 @@
 import { h } from './dom.js';
+import { icon } from './icons.js';
 import { loadSettings, saveSettings } from '../storage.js';
 import { applyTheme, applyDeSize } from '../theme.js';
 import { speechSupported, getGermanVoices, onVoicesChanged, speakOnce, cancelSpeech } from '../speech.js';
@@ -6,7 +7,12 @@ import { speechSupported, getGermanVoices, onVoicesChanged, speakOnce, cancelSpe
 const SAMPLE = 'Guten Tag! Ich lerne Deutsch, und das macht mir viel Spaß.';
 
 export function renderSettings(view, ctx) {
-  ctx.setBar('設定', ctx.previousHash());
+  // 設定頁像一個暫時打開的視窗：沒有返回鍵，右上角用 ✕ 關閉（位置和設定圖示相同）
+  ctx.setBar('設定', null);
+  const close = () => ctx.navigate(ctx.previousHash());
+  ctx.addBarAction(h('button', { class: 'bar-back', type: 'button', 'aria-label': '關閉設定', onclick: close }, icon('close')));
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey);
 
   const settings = loadSettings();
   const save = () => saveSettings(settings);
@@ -119,6 +125,7 @@ export function renderSettings(view, ctx) {
   const stopWatching = onVoicesChanged(populateVoices);
 
   return () => {
+    document.removeEventListener('keydown', onKey);
     stopWatching();
     cancelSpeech();
   };
