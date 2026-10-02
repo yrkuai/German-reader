@@ -69,6 +69,13 @@ export function renderTranslate(view, id, ctx) {
       const saved = saveArticle(article);
       const missing = untranslated(article);
 
+      // 全部成功：直接回到文章，在那裡顯示提示
+      if (saved && !skipped.length && !missing.length) {
+        ctx.setFlash(`✓ 已匯入 ${items.length} 句翻譯`);
+        ctx.navigate(readerHash);
+        return;
+      }
+
       result.append(...[
         h('p', { class: 'ok' }, `已匯入 ${items.length} 句（第 ${formatRanges(items.map((i) => i.n))} 句）。`),
         skipped.length

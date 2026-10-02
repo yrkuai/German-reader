@@ -5,6 +5,7 @@ import { tokenize } from '../segmenter.js';
 import { createPlayer, RATES, formatRate, speechSupported, getGermanVoices, onVoicesChanged } from '../speech.js';
 import { untranslated, formatRanges, lookupWord, grammarLine } from '../importer.js';
 import { openWordSheet } from './wordSheet.js';
+import { showToast } from './toast.js';
 
 export function renderReader(view, id, ctx) {
   const article = getArticle(id);
@@ -216,6 +217,9 @@ export function renderReader(view, id, ctx) {
   if (shownIndex > 0) {
     requestAnimationFrame(() => cards[shownIndex].scrollIntoView({ block: 'center' }));
   }
+
+  const flash = ctx.takeFlash();
+  if (flash) showToast(flash);
 
   return () => {
     closeSheet?.();

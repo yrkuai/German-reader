@@ -625,8 +625,29 @@ select.input { appearance: auto; }
 .sheet-meaning { margin: 14px 0 0; font-size: 18px; line-height: 1.5; }
 .sheet-meaning.is-empty { color: var(--ink-muted); font-size: 14px; }
 
+/* ---------- 短暫提示 ---------- */
+.toast {
+  position: fixed;
+  top: calc(64px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  z-index: 50;
+  max-width: calc(100% - 32px);
+  padding: 12px 20px;
+  border-radius: var(--r-pill);
+  background: var(--primary);
+  color: var(--on-primary);
+  box-shadow: var(--shadow-float);
+  font-size: 14px;
+  font-weight: 500;
+  opacity: 0;
+  transform: translate(-50%, -8px);
+  transition: opacity 0.2s, transform 0.2s;
+  pointer-events: none;
+}
+.toast.is-shown { opacity: 1; transform: translate(-50%, 0); }
+
 @media (prefers-reduced-motion: reduce) {
-  .sheet, .sheet-backdrop, .switch-track, .switch-thumb, .btn, .ctrl { transition: none; }
+  .sheet, .sheet-backdrop, .switch-track, .switch-thumb, .btn, .ctrl, .toast { transition: none; }
 }
 
 @media (min-width: 768px) {

@@ -12,6 +12,7 @@ const settingsLink = document.getElementById('bar-settings');
 const barActions = document.getElementById('bar-actions');
 
 let cleanup = null;
+let flash = null;
 let currentHash = null;
 let previousHash = '#/';
 
@@ -34,6 +35,13 @@ const ctx = {
   },
   // 設定頁的返回鍵回到進來之前的畫面
   previousHash: () => previousHash,
+  // 換畫面後要顯示的一次性提示（例如匯入成功）
+  setFlash(text) { flash = text; },
+  takeFlash() {
+    const text = flash;
+    flash = null;
+    return text;
+  },
 };
 
 // 路由：#/ 文章列表、#/new 新增文章、#/read/<id> 閱讀、#/translate/<id> 取得翻譯、#/settings 設定
