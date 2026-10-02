@@ -13,7 +13,7 @@ export function renderLibrary(view, ctx) {
   view.append(
     h('div', { class: 'page-head' },
       h('h1', { class: 'page-title' }, '我的文章'),
-      h('a', { class: 'btn btn-primary', href: '#/new' }, '＋ 新增'),
+      h('a', { class: 'btn btn-primary btn-icon-text', href: '#/new' }, icon('plus'), '新增'),
     ),
   );
 

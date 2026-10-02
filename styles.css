@@ -235,6 +235,7 @@ button.bar-back { border: 0; padding: 0; font: inherit; font-size: 1.15rem; curs
 .btn-ghost { background: transparent; color: var(--ink-muted); }
 .btn-ghost:hover { background: var(--surface-1); color: var(--ink); }
 .btn-danger { background: var(--danger); color: #fff; }
+.btn-icon-text .icon svg { width: 16px; height: 16px; }
 .btn-danger:hover { background: var(--danger); opacity: 0.88; }
 
 .input {
@@ -311,7 +312,7 @@ select.input { appearance: auto; }
   font-weight: 500;
   cursor: pointer;
 }
-.swipe-delete .icon svg { width: 20px; height: 20px; }
+.swipe-delete .icon svg { width: 16px; height: 16px; }
 .article-item {
   position: relative;
   display: flex;
