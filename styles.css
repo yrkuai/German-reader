@@ -47,6 +47,10 @@
 
   --player-h: 0px; /* 底部播放列的高度，由 reader.js 設定 */
 
+  /* 左右邊距：分隔線式頁面（我的文章、設定、新增文章）20px；
+     卡片式頁面（閱讀、取得翻譯）卡片本身有內距，用 16px。標題列跟著頁面走 */
+  --gutter: 20px;
+
   /* 德文句子字級（設定頁「德文字級」：小／中／大），手機／桌機 */
   --de-size: 18px;
   --de-size-wide: 20px;
@@ -94,6 +98,7 @@
   color-scheme: dark;
 }
 
+:root[data-layout="cards"] { --gutter: 16px; }
 :root[data-de-size="s"] { --de-size: 16px; --de-size-wide: 18px; }
 :root[data-de-size="l"] { --de-size: 21px; --de-size-wide: 23px; }
 
@@ -130,7 +135,7 @@ a { color: var(--link); }
   align-items: center;
   gap: 4px;
   min-height: 56px;
-  padding: env(safe-area-inset-top, 0px) max(10px, env(safe-area-inset-right, 0px)) 0 max(10px, env(safe-area-inset-left, 0px));
+  padding: env(safe-area-inset-top, 0px) max(var(--gutter), env(safe-area-inset-right, 0px)) 0 max(var(--gutter), env(safe-area-inset-left, 0px));
   background: color-mix(in srgb, var(--canvas) 88%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -166,6 +171,9 @@ a { color: var(--link); }
   text-overflow: ellipsis;
 }
 
+/* 沒有返回按鈕時（我的文章頁），標題文字直接對齊左邊距 */
+.bar-back[hidden] + .bar-title { padding-left: 0; }
+
 .bar-actions { display: flex; align-items: center; }
 .bar-actions:empty { display: none; }
 
@@ -173,7 +181,7 @@ a { color: var(--link); }
 .view {
   max-width: 760px;
   margin: 0 auto;
-  padding: 20px max(16px, env(safe-area-inset-right, 0px)) calc(40px + var(--player-h) + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  padding: 20px max(var(--gutter), env(safe-area-inset-right, 0px)) calc(40px + var(--player-h) + env(safe-area-inset-bottom, 0px)) max(var(--gutter), env(safe-area-inset-left, 0px));
 }
 
 .page-head {

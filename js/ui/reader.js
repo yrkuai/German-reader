@@ -83,7 +83,7 @@ export function renderReader(view, id, ctx) {
         status,
         h('div', { class: 'speed-group', role: 'radiogroup', 'aria-label': '語速' }, speedButtons),
       ),
-      h('div', { class: 'player-controls' }, firstBtn, prevBtn, loopBtn, allBtn, nextBtn, stopBtn),
+      h('div', { class: 'player-controls' }, firstBtn, prevBtn, allBtn, loopBtn, nextBtn, stopBtn),
     ),
   );
 
