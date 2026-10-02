@@ -72,7 +72,6 @@ export function renderSettings(view, ctx) {
         h('h2', { class: 'card-title' }, '外觀'),
         h('div', { class: 'speed-group', role: 'radiogroup', 'aria-label': '外觀' }, themeButtons),
       ),
-      h('p', { class: 'hint' }, '「自動」會跟著手機或電腦的深色模式設定切換。'),
     ),
     h('section', { class: 'card stack' },
       h('h2', { class: 'card-title' }, '德文語音'),
