@@ -322,9 +322,9 @@ select.input { appearance: auto; }
 @media (hover: hover) {
   .sentence:hover { background: var(--surface-1); }
 }
-/* 目前的句子：表面抬升一層；播放中再加藍色選取框 */
+/* 目前的句子：淺灰底；播放中底色不變，只加藍色外框 */
 .sentence.is-current { background: var(--surface-1); }
-.sentence.is-playing { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--accent); }
+.sentence.is-playing { background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--accent); }
 
 .sentence-no {
   flex: none;
