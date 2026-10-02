@@ -2,11 +2,13 @@
 // 規則：同一時間只有一個 utterance；切換狀態前一定先 cancel 並清除計時器；
 // 所有非同步回呼都用 runId 檢查是否已經過期。
 
-export const SPEEDS = {
-  native: { rate: 1.1, label: '母語' },
-  normal: { rate: 0.9, label: '一般' },
-  learner: { rate: 0.7, label: '學習者' },
-};
+// 語速選項（播放列上由左到右）。1.0 是語音本身的正常速度
+export const RATES = [1.15, 1.0, 0.9, 0.7];
+export const DEFAULT_RATE = 1.0;
+
+export function formatRate(rate) {
+  return Number.isInteger(rate) ? rate.toFixed(1) : String(rate);
+}
 
 const ALL_GAP_MS = 300;        // 整篇播放時句子之間的停頓
 const KEEPALIVE_MS = 10000;    // Chrome 桌機版唸超過約 15 秒會自己停，長句子定期 pause/resume
@@ -88,7 +90,7 @@ export function createPlayer({ sentences, settings, startIndex = 0, onChange }) 
 
   const state = () => ({ mode, index, phase, error });
   const emit = () => onChange(state());
-  const rate = () => (SPEEDS[settings.speed] || SPEEDS.normal).rate;
+  const rate = () => (RATES.includes(settings.rate) ? settings.rate : DEFAULT_RATE);
 
   function hardStop() {
     runId++;

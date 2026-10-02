@@ -1,6 +1,7 @@
 import { h } from './dom.js';
 import { loadSettings, saveSettings } from '../storage.js';
-import { SPEEDS, speechSupported, getGermanVoices, onVoicesChanged, speakOnce, cancelSpeech } from '../speech.js';
+import { applyTheme } from '../theme.js';
+import { speechSupported, getGermanVoices, onVoicesChanged, speakOnce, cancelSpeech } from '../speech.js';
 
 const SAMPLE = 'Guten Tag! Ich lerne Deutsch, und das macht mir viel Spaß.';
 
@@ -31,7 +32,7 @@ export function renderSettings(view, ctx) {
 
   const testBtn = h('button', {
     class: 'btn', type: 'button', disabled: !speechSupported,
-    onclick: () => speakOnce(SAMPLE, { voiceURI: settings.voiceURI, rate: SPEEDS[settings.speed].rate }),
+    onclick: () => speakOnce(SAMPLE, { voiceURI: settings.voiceURI, rate: settings.rate }),
   }, '試聽');
 
   // ---------- 停頓 ----------
@@ -48,7 +49,31 @@ export function renderSettings(view, ctx) {
   });
   showPause();
 
+  // ---------- 外觀 ----------
+  const themeButtons = [['auto', '自動'], ['light', '淺色'], ['dark', '深色']].map(([value, label]) =>
+    h('button', {
+      class: 'speed', type: 'button', role: 'radio', 'data-theme-value': value,
+      onclick: () => {
+        settings.theme = value;
+        save();
+        applyTheme(value);
+        showTheme();
+      },
+    }, label),
+  );
+  const showTheme = () => {
+    for (const b of themeButtons) b.setAttribute('aria-checked', String(b.dataset.themeValue === settings.theme));
+  };
+  showTheme();
+
   view.append(
+    h('section', { class: 'card stack' },
+      h('div', { class: 'row row-between' },
+        h('h2', { class: 'card-title' }, '外觀'),
+        h('div', { class: 'speed-group', role: 'radiogroup', 'aria-label': '外觀' }, themeButtons),
+      ),
+      h('p', { class: 'hint' }, '「自動」會跟著手機或電腦的深色模式設定切換。'),
+    ),
     h('section', { class: 'card stack' },
       h('h2', { class: 'card-title' }, '德文語音'),
       speechSupported ? null : h('p', { class: 'notice' }, '這個瀏覽器不支援語音播放，請改用 Chrome、Edge 或 Safari。'),

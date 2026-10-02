@@ -2,6 +2,8 @@ import { renderLibrary, renderNewArticle } from './ui/library.js';
 import { renderReader } from './ui/reader.js';
 import { renderSettings } from './ui/settings.js';
 import { renderTranslate } from './ui/translate.js';
+import { applyTheme } from './theme.js';
+import { loadSettings } from './storage.js';
 
 const view = document.getElementById('view');
 const backLink = document.getElementById('bar-back');
@@ -53,6 +55,7 @@ function route() {
   else cleanup = renderLibrary(view, ctx);
 }
 
+applyTheme(loadSettings().theme);
 window.addEventListener('hashchange', route);
 route();
 

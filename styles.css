@@ -11,7 +11,7 @@
   --danger: #b3382c;
   --warn-bg: #f7e9c8;
   --radius: 12px;
-  --player-h: 0px; /* 第 2 階段的底部播放列會設定這個高度 */
+  --player-h: 0px; /* 底部播放列的高度，由 reader.js 設定 */
 
   --font-ui: system-ui, -apple-system, "Segoe UI", "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
   --font-de: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Noto Serif", serif;
@@ -19,8 +19,9 @@
   color-scheme: light;
 }
 
+/* 深色：跟著裝置（沒有手動選淺色時），或在設定頁手動選深色 */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #161a19;
     --surface: #1e2321;
     --ink: #e8ebe9;
@@ -34,6 +35,21 @@
     --warn-bg: #3a3220;
     color-scheme: dark;
   }
+}
+
+:root[data-theme="dark"] {
+  --bg: #161a19;
+  --surface: #1e2321;
+  --ink: #e8ebe9;
+  --muted: #9aa29e;
+  --border: #2f3633;
+  --accent: #5fbdb2;
+  --accent-ink: #0e1413;
+  --accent-soft: #23332f;
+  --word-hover: #2c3431;
+  --danger: #ef7b6e;
+  --warn-bg: #3a3220;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -202,33 +218,17 @@ body {
 
 .sentence.is-playing { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
 
-/* 每句左側的「重複這句」按鈕，下方顯示句號 */
-.sentence-play {
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  width: 44px;
-  min-height: 44px;
-  padding: 4px 0;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--muted);
-  font: inherit;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-.sentence-play .icon svg { width: 18px; height: 18px; }
-.sentence-play:hover { background: var(--word-hover); color: var(--accent); }
-.sentence.is-current .sentence-play { color: var(--accent); }
-.sentence-play:disabled { opacity: 0.4; cursor: not-allowed; }
-
+/* 句號：點句子就會重複播放這一句 */
 .sentence-no {
-  font-size: 0.75rem;
+  flex: none;
+  min-width: 1.8em;
+  padding-top: 5px;
+  color: var(--muted);
+  font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
+  text-align: right;
 }
+.sentence.is-current .sentence-no { color: var(--accent); font-weight: 600; }
 
 .sentence-body { flex: 1; min-width: 0; }
 
@@ -254,22 +254,42 @@ body {
 
 .bar-actions { display: flex; align-items: center; }
 .bar-actions:empty { display: none; }
-.zh-toggle {
-  min-width: 44px;
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   height: 44px;
-  padding: 0 10px;
+  padding: 0 8px;
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: var(--muted);
+  color: var(--ink);
   font: inherit;
-  font-weight: 600;
-  text-decoration: line-through;
+  font-size: 0.9rem;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-.zh-toggle[aria-pressed="true"] { color: var(--accent); text-decoration: none; }
-.zh-toggle:hover { background: var(--word-hover); }
+.switch-track {
+  position: relative;
+  width: 40px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--border);
+  transition: background 0.15s;
+}
+.switch-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+  transition: transform 0.15s;
+}
+.switch[aria-checked="true"] .switch-track { background: var(--accent); }
+.switch[aria-checked="true"] .switch-thumb { transform: translateX(16px); }
 
 .zh {
   margin: 4px 0 0;
@@ -330,14 +350,18 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  flex-wrap: wrap;
 }
 .player-status {
+  min-width: 0;
   color: var(--muted);
   font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.player-status.is-error { color: var(--danger); }
+.player-error { margin: 0; color: var(--danger); font-size: 0.85rem; }
+.speed-group { flex: none; }
 
 .speed-group {
   display: inline-flex;
@@ -350,7 +374,9 @@ body {
   display: inline-flex;
   gap: 3px;
   min-height: 36px;
-  padding: 0 12px;
+  min-width: 44px;
+  justify-content: center;
+  padding: 0 10px;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -361,7 +387,6 @@ body {
   -webkit-tap-highlight-color: transparent;
   align-items: center;
 }
-.speed small { font-size: 0.7rem; opacity: 0.8; }
 .speed[aria-checked="true"] { background: var(--accent); color: var(--accent-ink); }
 .speed:disabled { opacity: 0.45; cursor: not-allowed; }
 
@@ -481,7 +506,7 @@ body {
 .sheet-meaning.is-empty { color: var(--muted); font-size: 0.95rem; }
 
 @media (prefers-reduced-motion: reduce) {
-  .sheet, .sheet-backdrop { transition: none; }
+  .sheet, .sheet-backdrop, .switch-track, .switch-thumb { transition: none; }
 }
 
 @media (min-width: 768px) {

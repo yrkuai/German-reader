@@ -2,7 +2,7 @@ import { h } from './dom.js';
 import { icon } from './icons.js';
 import { getArticle, deleteArticle, setLastIndex, loadSettings, saveSettings } from '../storage.js';
 import { tokenize } from '../segmenter.js';
-import { createPlayer, SPEEDS, speechSupported, getGermanVoices, onVoicesChanged } from '../speech.js';
+import { createPlayer, RATES, formatRate, speechSupported, getGermanVoices, onVoicesChanged } from '../speech.js';
 import { untranslated, formatRanges, lookupMeaning } from '../importer.js';
 import { openWordSheet } from './wordSheet.js';
 
@@ -27,11 +27,11 @@ export function renderReader(view, id, ctx) {
   let shownPlaying = false;
 
   const cards = article.sentences.map((s, i) =>
-    h('li', { class: 'sentence', 'data-index': i, onclick: () => player.goTo(i) },
-      h('button', {
-        class: 'sentence-play', type: 'button', 'aria-label': `重複播放第 ${i + 1} 句`,
-        onclick: (e) => { e.stopPropagation(); player.loop(i); },
-      }, icon('repeat'), h('span', { class: 'sentence-no' }, i + 1)),
+    h('li', {
+      class: 'sentence', 'data-index': i,
+      onclick: () => (player.state.mode === 'all' ? player.goTo(i) : player.loop(i)),
+    },
+      h('span', { class: 'sentence-no', 'aria-hidden': 'true' }, i + 1),
       h('div', { class: 'sentence-body' },
         h('p', { class: 'de', lang: 'de' },
           tokenize(s.de).map((t) => (t.word
@@ -46,38 +46,43 @@ export function renderReader(view, id, ctx) {
   // ---------- 底部播放列 ----------
   const status = h('span', { class: 'player-status', 'aria-live': 'polite' });
 
-  const speedButtons = Object.entries(SPEEDS).map(([key, { label, rate }]) =>
+  const speedButtons = RATES.map((rate) =>
     h('button', {
-      class: 'speed', type: 'button', role: 'radio', 'data-speed': key,
-      'aria-label': `${label} ${rate} 倍`,
+      class: 'speed', type: 'button', role: 'radio', 'data-rate': rate,
+      'aria-label': `語速 ${formatRate(rate)} 倍`,
       onclick: () => {
-        settings.speed = key;
-        saveSettings({ ...loadSettings(), speed: key });
+        settings.rate = rate;
+        saveSettings({ ...loadSettings(), rate });
         updateSpeedButtons();
         player.speedChanged();
       },
-    }, label, h('small', {}, `${rate}x`)),
+    }, formatRate(rate)),
   );
 
+  const firstBtn = h('button', { class: 'ctrl', type: 'button', 'aria-label': '回到第一句', onclick: () => player.goTo(0) }, icon('first'));
   const prevBtn = h('button', { class: 'ctrl', type: 'button', 'aria-label': '上一句', onclick: () => player.prev() }, icon('prev'));
   const nextBtn = h('button', { class: 'ctrl', type: 'button', 'aria-label': '下一句', onclick: () => player.next() }, icon('next'));
   const loopBtn = h('button', {
-    class: 'ctrl ctrl-wide', type: 'button',
+    class: 'ctrl ctrl-wide', type: 'button', 'aria-label': '單句重複',
     onclick: () => (player.state.mode === 'loop' ? player.stop() : player.loop()),
-  }, icon('repeat'), h('span', {}, '單句重複'));
+  }, icon('repeat'), h('span', { 'aria-hidden': 'true' }, '單句'));
   const allBtn = h('button', {
-    class: 'ctrl ctrl-wide', type: 'button',
+    class: 'ctrl ctrl-wide', type: 'button', 'aria-label': '整篇播放',
     onclick: () => (player.state.mode === 'all' ? player.stop() : player.playAll()),
-  }, icon('play'), h('span', {}, '整篇播放'));
+  }, icon('play'), h('span', { 'aria-hidden': 'true' }, '整篇'));
   const stopBtn = h('button', { class: 'ctrl', type: 'button', 'aria-label': '停止', onclick: () => player.stop() }, icon('stop'));
+
+  // 錯誤訊息另外放一行，狀態列永遠只有一行，播放列高度不會跳動
+  const errorLine = h('p', { class: 'player-error', role: 'alert', hidden: true });
 
   const bar = h('div', { class: 'player' },
     h('div', { class: 'player-inner' },
+      errorLine,
       h('div', { class: 'player-top' },
         status,
         h('div', { class: 'speed-group', role: 'radiogroup', 'aria-label': '語速' }, speedButtons),
       ),
-      h('div', { class: 'player-controls' }, prevBtn, loopBtn, allBtn, nextBtn, stopBtn),
+      h('div', { class: 'player-controls' }, firstBtn, prevBtn, loopBtn, allBtn, nextBtn, stopBtn),
     ),
   );
 
@@ -86,17 +91,16 @@ export function renderReader(view, id, ctx) {
   // ---------- 顯示／隱藏中文翻譯 ----------
   const sentenceList = h('ol', { class: 'sentences' }, cards);
   const zhToggle = h('button', {
-    class: 'zh-toggle', type: 'button', 'aria-label': '顯示中文翻譯',
+    class: 'switch', type: 'button', role: 'switch',
     onclick: () => {
       settings.showZh = !settings.showZh;
       saveSettings({ ...loadSettings(), showZh: settings.showZh });
       applyZh();
     },
-  }, '中');
+  }, h('span', { class: 'switch-label' }, '翻譯'), h('span', { class: 'switch-track', 'aria-hidden': 'true' }, h('span', { class: 'switch-thumb' })));
   function applyZh() {
     sentenceList.classList.toggle('hide-zh', !settings.showZh);
-    zhToggle.setAttribute('aria-pressed', String(settings.showZh));
-    zhToggle.title = settings.showZh ? '隱藏中文翻譯' : '顯示中文翻譯';
+    zhToggle.setAttribute('aria-checked', String(settings.showZh));
   }
   ctx.addBarAction(zhToggle);
   applyZh();
@@ -134,7 +138,7 @@ export function renderReader(view, id, ctx) {
     onChange: render,
   });
 
-  function render({ mode, index, phase, error }) {
+  function render({ mode, index, error }) {
     const playing = mode !== 'idle';
 
     if (index !== shownIndex || playing !== shownPlaying) {
@@ -154,19 +158,25 @@ export function renderReader(view, id, ctx) {
     allBtn.classList.toggle('is-active', mode === 'all');
     allBtn.setAttribute('aria-pressed', String(mode === 'all'));
     stopBtn.disabled = !playing;
+    firstBtn.disabled = index === 0;
     prevBtn.disabled = index === 0;
     nextBtn.disabled = index === total - 1;
 
-    status.classList.toggle('is-error', !!error);
-    if (error) status.textContent = error;
-    else if (mode === 'loop') status.textContent = `第 ${index + 1} 句 · ${phase === 'pause' ? '停頓…' : '重複中'}`;
-    else if (mode === 'all') status.textContent = `播放中 ${index + 1} / ${total}`;
-    else status.textContent = `第 ${index + 1} / ${total} 句`;
+    status.textContent = `第 ${index + 1} / ${total} 句`;
+    errorLine.textContent = error || '';
+    if (errorLine.hidden !== !error) {
+      errorLine.hidden = !error;
+      updatePlayerHeight();
+    }
+  }
+
+  function updatePlayerHeight() {
+    document.documentElement.style.setProperty('--player-h', `${bar.offsetHeight}px`);
   }
 
   function updateSpeedButtons() {
     for (const btn of speedButtons) {
-      btn.setAttribute('aria-checked', String(btn.dataset.speed === settings.speed));
+      btn.setAttribute('aria-checked', String(Number(btn.dataset.rate) === settings.rate));
     }
   }
 
@@ -175,7 +185,6 @@ export function renderReader(view, id, ctx) {
       notice.textContent = '這個瀏覽器不支援語音播放，請改用 Chrome、Edge 或 Safari。';
       notice.hidden = false;
       for (const b of [loopBtn, allBtn, ...speedButtons]) b.disabled = true;
-      for (const c of cards) c.querySelector('.sentence-play').disabled = true;
       return;
     }
     const none = getGermanVoices().length === 0;
@@ -193,7 +202,7 @@ export function renderReader(view, id, ctx) {
     ),
     bar,
   );
-  document.documentElement.style.setProperty('--player-h', `${bar.offsetHeight}px`);
+  updatePlayerHeight();
 
   updateSpeedButtons();
   render(player.state);

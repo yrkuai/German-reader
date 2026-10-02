@@ -5,11 +5,12 @@ const PREFIX = 'gr:';
 const ARTICLES_KEY = 'articles';
 const SETTINGS_KEY = 'settings';
 
-const SETTINGS_VERSION = 3;
+const SETTINGS_VERSION = 4;
 
 export const DEFAULT_SETTINGS = {
   voiceURI: null,
-  speed: 'native',
+  rate: 1.0,          // 語速倍率，選項見 speech.js 的 RATES
+  theme: 'auto',      // 'auto' 跟著裝置 | 'light' | 'dark'
   pauseMs: 1200,
   showZh: true,
 };
@@ -80,9 +81,9 @@ export function loadSettings() {
   const stored = read(SETTINGS_KEY, {});
   // v1 的預設停頓是 1.5 秒，換語速時會被一起存下來；升級時改成新的預設 1.2 秒
   if (!stored.v && stored.pauseMs === 1500) stored.pauseMs = DEFAULT_SETTINGS.pauseMs;
-  // v3 起預設語速改為母語；升級時把舊的預設「一般」改過來
-  if ((stored.v || 1) < 3 && stored.speed === 'normal') stored.speed = DEFAULT_SETTINGS.speed;
-  const { v, ...settings } = stored;
+  // v4 起語速改存倍率數字（原本是母語／一般／學習者），升級時一律改為新預設 1.0
+  if ((stored.v || 1) < 4) stored.rate = DEFAULT_SETTINGS.rate;
+  const { v, speed, ...settings } = stored;
   return { ...DEFAULT_SETTINGS, ...settings };
 }
 
