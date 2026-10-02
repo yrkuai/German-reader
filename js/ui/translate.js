@@ -1,4 +1,5 @@
 import { h } from './dom.js';
+import { icon } from './icons.js';
 import { getArticle, saveArticle } from '../storage.js';
 import { makeBatches, buildPrompt } from '../prompt.js';
 import { parseResponse, mergeTranslations, untranslated, formatRanges, ImportError } from '../importer.js';
@@ -60,6 +61,26 @@ export function renderTranslate(view, id, ctx) {
   const importBtn = h('button', { class: 'btn btn-primary', type: 'button', disabled: true }, '匯入');
   const result = h('div', { class: 'result', 'aria-live': 'polite' });
   responseInput.addEventListener('input', () => { importBtn.disabled = !responseInput.value.trim(); });
+
+  // 從剪貼簿貼上：iPhone 第一次會跳出「貼上」的確認
+  const pasteBtn = h('button', {
+    class: 'btn btn-icon-text', type: 'button',
+    onclick: async () => {
+      result.replaceChildren();
+      try {
+        const text = await navigator.clipboard.readText();
+        if (!text.trim()) {
+          result.append(h('p', { class: 'error' }, '剪貼簿是空的，請先在 AI 那邊複製回覆內容。'));
+          return;
+        }
+        responseInput.value = text;
+        importBtn.disabled = false;
+      } catch {
+        result.append(h('p', { class: 'error' }, '無法讀取剪貼簿，請長按輸入框手動貼上。'));
+        responseInput.focus();
+      }
+    },
+  }, icon('paste'), '從剪貼簿貼上');
 
   importBtn.addEventListener('click', () => {
     result.replaceChildren();
@@ -124,7 +145,7 @@ export function renderTranslate(view, id, ctx) {
   view.append(
     step1,
     h('section', { class: 'settings-section stack' },
-      h('h2', { class: 'card-title' }, '2. 貼回結果'),
+      h('div', { class: 'row row-between' }, h('h2', { class: 'card-title' }, '2. 貼回結果'), pasteBtn),
       responseInput,
       h('div', { class: 'actions' }, importBtn),
       result,
