@@ -295,12 +295,14 @@ select.input { appearance: auto; }
 .swipe-row.is-removing { height: 0 !important; transition: height 0.2s ease; }
 .swipe-delete {
   position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 80px;
+  top: 50%;
+  right: var(--gutter);
+  height: 40px;
+  padding: 0 18px;
   border: 0;
-  background: var(--danger);
+  border-radius: var(--r-pill);
+  transform: translateY(-50%);
+  background: #d92d20; /* 深淺模式都用同一個深紅，白字才看得清楚 */
   color: #fff;
   font: inherit;
   font-size: 14px;

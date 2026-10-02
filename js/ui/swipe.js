@@ -4,8 +4,8 @@
 // - 同一時間只開一個；點別的地方或捲動時收回
 // - 打開時點項目本身只會收回，不會進入文章
 
-const ACTION_WIDTH = 80;
 const START_THRESHOLD = 8;
+const ACTION_GAP = 12; // 文字滑開後和刪除按鈕之間留的空隙
 
 export function createSwipeGroup() {
   let openRow = null;
@@ -25,6 +25,9 @@ export function createSwipeGroup() {
     let state = 'idle'; // 'idle' | 'pending' | 'swiping' | 'scrolling'
     let suppressClick = false;
 
+    // 需要滑開的距離：刪除按鈕的寬度＋它右邊的頁面邊距＋空隙
+    const actionWidth = () => row.getBoundingClientRect().right - action.getBoundingClientRect().left + ACTION_GAP;
+
     const setOffset = (value, animate) => {
       offset = value;
       content.classList.toggle('is-dragging', !animate);
@@ -42,7 +45,7 @@ export function createSwipeGroup() {
       },
       open() {
         if (openRow && openRow !== api) openRow.close();
-        setOffset(-ACTION_WIDTH, true);
+        setOffset(-actionWidth(), true);
         openRow = api;
       },
     };
@@ -72,16 +75,17 @@ export function createSwipeGroup() {
         content.setPointerCapture(e.pointerId);
       }
       // 往右最多回到 0；往左超過按鈕寬度後阻力變大
+      const width = actionWidth();
       let next = startOffset + dx;
       if (next > 0) next = 0;
-      if (next < -ACTION_WIDTH) next = -ACTION_WIDTH + (next + ACTION_WIDTH) / 3;
+      if (next < -width) next = -width + (next + width) / 3;
       setOffset(next, false);
     });
 
     const finish = () => {
       if (state === 'swiping') {
         suppressClick = true;
-        if (offset < -ACTION_WIDTH / 2) api.open();
+        if (offset < -actionWidth() / 2) api.open();
         else api.close();
       }
       state = 'idle';
