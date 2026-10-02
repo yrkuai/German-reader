@@ -1,5 +1,5 @@
 /* 字級角色（我的文章頁、設定頁）：
-   頁面大標題 30/500 · 內容標題 18/500 · 導覽 17/600（全站唯一的半粗體）
+   頁面大標題 30/500 · 內容標題 18/500 · 導覽 17/600 · 設定頁區塊標題 17/600
    一般文字／項目名稱 17/500 · 操作 14/500 · 輔助說明 14/400 灰色 */
 
 /* 設計風格：參考 Framer 設計系統
@@ -557,6 +557,7 @@ select.input { appearance: auto; }
 .settings-section { padding: 20px 0; border-bottom: 1px solid var(--hairline); }
 .settings-section:first-child { padding-top: 4px; }
 .settings-section:last-child { border-bottom: 0; }
+.settings-section .card-title { font-weight: 600; }
 .row { display: flex; gap: 8px; align-items: center; }
 .row > .input { flex: 1; min-width: 0; }
 .row-between { justify-content: space-between; }
