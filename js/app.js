@@ -63,6 +63,9 @@ function route() {
   else cleanup = renderLibrary(view, ctx);
 }
 
+// iPhone 的 Safari 會忽略 viewport 的 user-scalable=no，另外擋掉雙指縮放手勢
+document.addEventListener('gesturestart', (e) => e.preventDefault());
+
 applyTheme(loadSettings().theme);
 applyDeSize(loadSettings().deSize);
 window.addEventListener('hashchange', route);

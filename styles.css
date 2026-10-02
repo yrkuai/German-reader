@@ -95,7 +95,9 @@
 
 * { box-sizing: border-box; }
 
-html { -webkit-text-size-adjust: 100%; }
+/* 不允許雙指放大與點兩下放大（字的大小改用設定頁的「德文字級」調整） */
+html { -webkit-text-size-adjust: 100%; touch-action: pan-x pan-y; }
+body { touch-action: pan-x pan-y; }
 
 body {
   margin: 0;
