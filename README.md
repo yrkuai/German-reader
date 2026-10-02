@@ -4,7 +4,7 @@
 
 - 網址：https://yrkuai.github.io/German-reader/
 - 純前端（HTML + CSS + JavaScript），沒有後端，不需要任何付費服務
-- 文章只存在自己的瀏覽器（localStorage），不會上傳
+- 文章存在自己的瀏覽器（localStorage）；可選擇開啟同步，透過自己 GitHub 帳號的 Secret Gist 讓電腦和手機的文章自動同步（設定 → 同步）。不開啟就不會上傳任何資料
 - 語音使用瀏覽器內建的 Web Speech API
 - 支援加到手機主畫面與離線使用（PWA）
 

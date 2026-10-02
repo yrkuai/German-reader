@@ -1,6 +1,7 @@
 import { h } from './dom.js';
 import { loadSettings, saveSettings } from '../storage.js';
 import { applyTheme, applyDeSize } from '../theme.js';
+import { syncSection } from './sync.js';
 import { speechSupported, getGermanVoices, onVoicesChanged, speakOnce, cancelSpeech } from '../speech.js';
 
 const SAMPLE = 'Guten Tag! Ich lerne Deutsch, und das macht mir viel Spaß.';
@@ -85,7 +86,10 @@ export function renderSettings(view, ctx) {
   };
   showSize();
 
+  const sync = syncSection();
+
   view.append(
+    sync.el,
     h('section', { class: 'settings-section stack' },
       h('div', { class: 'row row-between' },
         h('h2', { class: 'card-title' }, '外觀'),
@@ -125,6 +129,7 @@ export function renderSettings(view, ctx) {
   return () => {
     document.removeEventListener('keydown', onKey);
     stopWatching();
+    sync.cleanup();
     cancelSpeech();
   };
 }

@@ -2,6 +2,8 @@ import { renderLibrary, renderNewArticle } from './ui/library.js';
 import { renderReader } from './ui/reader.js';
 import { renderSettings } from './ui/settings.js';
 import { renderTranslate } from './ui/translate.js';
+import { renderPair } from './ui/sync.js';
+import { startSync } from './sync.js';
 import { applyTheme, applyDeSize } from './theme.js';
 import { loadSettings } from './storage.js';
 
@@ -44,7 +46,8 @@ const ctx = {
   },
 };
 
-// 路由：#/ 文章列表、#/new 新增文章、#/read/<id> 閱讀、#/translate/<id> 取得翻譯、#/settings 設定
+// 路由：#/ 文章列表、#/new 新增文章、#/read/<id> 閱讀、#/translate/<id> 取得翻譯、#/settings 設定、
+// #/pair/<配對碼> 掃 QR code 設定同步
 function route() {
   const hash = location.hash || '#/';
   if (currentHash && currentHash !== hash && !currentHash.startsWith('#/settings')) previousHash = currentHash;
@@ -60,6 +63,7 @@ function route() {
   else if (parts[0] === 'settings') cleanup = renderSettings(view, ctx);
   else if (parts[0] === 'translate' && parts[1]) cleanup = renderTranslate(view, decodeURIComponent(parts[1]), ctx);
   else if (parts[0] === 'read' && parts[1]) cleanup = renderReader(view, decodeURIComponent(parts[1]), ctx);
+  else if (parts[0] === 'pair') cleanup = renderPair(view, parts[1] || '', ctx);
   else cleanup = renderLibrary(view, ctx);
 }
 
@@ -70,6 +74,16 @@ applyTheme(loadSettings().theme);
 applyDeSize(loadSettings().deSize);
 window.addEventListener('hashchange', route);
 route();
+
+// 同步（沒設定時什麼都不做）。同步後本機資料有變，而且正在看文章列表，就重新整理列表；
+// 其他畫面不打斷，下次進到列表就會看到
+startSync(() => {
+  const hash = location.hash || '#/';
+  if (hash !== '#/' && hash !== '#') return;
+  const y = window.scrollY;
+  route();
+  window.scrollTo(0, y);
+});
 
 // 離線使用：註冊 Service Worker（只在 https 或 localhost 有效）
 if ('serviceWorker' in navigator) {
