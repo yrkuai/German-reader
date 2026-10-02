@@ -13,7 +13,6 @@ export function renderSettings(view, ctx) {
 
   // ---------- 語音 ----------
   const voiceSelect = h('select', { class: 'input', 'aria-label': '德文語音' });
-  const voiceEmpty = h('p', { class: 'notice', hidden: true }, '這台裝置找不到德文語音。請參考下方的說明安裝。');
 
   function populateVoices() {
     const voices = getGermanVoices();
@@ -22,7 +21,6 @@ export function renderSettings(view, ctx) {
       ...voices.map((v) => h('option', { value: v.voiceURI }, `${v.name} · ${v.lang}${v.localService ? '' : ' · 需網路'}`)),
     );
     voiceSelect.value = voices.some((v) => v.voiceURI === settings.voiceURI) ? settings.voiceURI : '';
-    voiceEmpty.hidden = !speechSupported || voices.length > 0;
   }
 
   voiceSelect.addEventListener('change', () => {
@@ -84,32 +82,31 @@ export function renderSettings(view, ctx) {
   showSize();
 
   view.append(
-    h('section', { class: 'card stack' },
+    h('section', { class: 'settings-section stack' },
       h('div', { class: 'row row-between' },
         h('h2', { class: 'card-title' }, '外觀'),
         h('div', { class: 'speed-group', role: 'radiogroup', 'aria-label': '外觀' }, themeButtons),
       ),
     ),
-    h('section', { class: 'card stack' },
+    h('section', { class: 'settings-section stack' },
       h('div', { class: 'row row-between' },
         h('h2', { class: 'card-title' }, '德文字級'),
         h('div', { class: 'speed-group', role: 'radiogroup', 'aria-label': '德文字級' }, sizeButtons),
       ),
     ),
-    h('section', { class: 'card stack' },
+    h('section', { class: 'settings-section stack' },
       h('h2', { class: 'card-title' }, '德文語音'),
       speechSupported ? null : h('p', { class: 'notice' }, '這個瀏覽器不支援語音播放，請改用 Chrome、Edge 或 Safari。'),
-      voiceEmpty,
       h('div', { class: 'row' }, voiceSelect, testBtn),
       h('p', { class: 'hint' }, '標示「需網路」的語音音質通常比較好，但沒有網路時無法使用。'),
     ),
-    h('section', { class: 'card stack' },
+    h('section', { class: 'settings-section stack' },
       h('div', { class: 'row row-between' }, h('h2', { class: 'card-title' }, '單句重複的停頓'), pauseLabel),
       pauseInput,
       h('p', { class: 'hint' }, '每次重複之間留一段空檔，讓你跟著唸。'),
     ),
-    h('section', { class: 'card stack' },
-      h('h2', { class: 'card-title' }, '讓德文語音更好聽'),
+    h('section', { class: 'settings-section stack' },
+      h('h2', { class: 'card-title' }, '德文語音安裝說明'),
       h('ul', { class: 'tips' },
         h('li', {}, h('b', {}, 'Windows：'), '用 Edge 瀏覽器，選名稱有「Online (Natural)」的語音（例如 Katja、Conrad）。'),
         h('li', {}, h('b', {}, 'iPhone / iPad：'), '設定 → 輔助使用 → 朗讀內容 → 聲音 → 德文，下載「Anna（增強版）」或其他高品質語音，再回來重新整理。'),

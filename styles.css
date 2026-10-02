@@ -542,6 +542,11 @@ select.input { appearance: auto; }
 .card .btn:not(.btn-primary) { background: var(--canvas); }
 .card .btn:not(.btn-primary):hover { background: var(--surface-2); }
 .card-title { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.02em; }
+
+/* 設定頁：各區塊之間用分隔線，不用卡片 */
+.settings-section { padding: 20px 0; border-bottom: 1px solid var(--hairline); }
+.settings-section:first-child { padding-top: 4px; }
+.settings-section:last-child { border-bottom: 0; }
 .row { display: flex; gap: 8px; align-items: center; }
 .row > .input { flex: 1; min-width: 0; }
 .row-between { justify-content: space-between; }
