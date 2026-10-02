@@ -10,7 +10,11 @@ export function renderSettings(view, ctx) {
   // 返回鍵在左上角，回到打開設定之前的頁面；電腦上也可以按 Esc
   ctx.setBar('設定', ctx.previousHash());
   const close = () => ctx.navigate(ctx.previousHash());
-  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  // 選單或彈窗開著時，Esc 只關閉它們，不離開設定頁
+  const onKey = (e) => {
+    if (e.key !== 'Escape' || document.querySelector('.dialog-backdrop, .menu:not([hidden])')) return;
+    close();
+  };
   document.addEventListener('keydown', onKey);
 
   const settings = loadSettings();

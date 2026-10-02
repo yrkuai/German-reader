@@ -13,10 +13,13 @@ export function syncSection() {
   const el = h('section', { class: 'settings-section stack' });
   let stopWatching = () => {};
   let clock = null;
+  let closeMenu = () => {};
+  let closeDialog = () => {};
 
   function draw() {
     stopWatching();
     clearInterval(clock);
+    closeMenu();
     if (loadSync()) drawConnected();
     else drawSetup();
   }
@@ -84,7 +87,7 @@ export function syncSection() {
       h('p', { class: 'hint' }, '讓電腦和手機的文章自動同步，資料存在你自己 GitHub 帳號的 Secret Gist。不設定也可以照常使用，文章只存在這台裝置。'),
       h('ul', { class: 'tips' },
         h('li', {}, h('b', {}, '第一台裝置：'), '點下方「建立 GitHub 金鑰」，在 GitHub 按「Generate token」，把金鑰複製回來貼上。'),
-        h('li', {}, h('b', {}, '其他裝置：'), '在已設定的裝置上按「在手機上設定」掃 QR code，或貼上「配對碼」。'),
+        h('li', {}, h('b', {}, '其他裝置：'), '在已設定的裝置上按「⋯」→「配對裝置」掃 QR code，或貼上「配對碼」。'),
       ),
       h('div', { class: 'row' },
         h('a', { class: 'btn', href: TOKEN_URL, target: '_blank', rel: 'noopener' }, '建立 GitHub 金鑰'),
@@ -113,43 +116,42 @@ export function syncSection() {
     clock = setInterval(showStatus, 30000);
     showStatus();
 
-    const qr = h('div', { class: 'qr', role: 'img', 'aria-label': '配對用的 QR code' });
-    qr.innerHTML = qrSvg(pairUrl(sync));
-    const qrBox = h('div', { class: 'stack', hidden: true },
-      qr,
-      h('p', { class: 'hint' }, '用手機相機掃描，掃了就會自動設定好。QR code 裡含有金鑰，不要截圖或分享給別人。'),
-      h('p', { class: 'hint' }, 'iPhone：掃描後會用 Safari 打開，請在那個畫面按「複製配對碼」，再到主畫面的 German Reader → 設定 → 同步 貼上。'),
-    );
-    const qrBtn = h('button', {
-      class: 'btn', type: 'button', 'aria-expanded': 'false',
-      onclick: () => {
-        qrBox.hidden = !qrBox.hidden;
-        qrBtn.setAttribute('aria-expanded', String(!qrBox.hidden));
-        qrBtn.textContent = qrBox.hidden ? '在手機上設定' : '隱藏 QR code';
+    // ⋯ 選單：配對裝置、複製配對碼、停止同步
+    const menu = createMenu([
+      { label: '配對裝置', onSelect: () => { closeDialog = openPairDialog(sync); } },
+      {
+        label: '複製配對碼',
+        onSelect: async () => {
+          const ok = await copyText(encodePairCode(sync));
+          showToast(ok ? '✓ 已複製配對碼，只傳給自己的裝置' : '無法複製，請改用「配對裝置」掃 QR code');
+        },
       },
-    }, '在手機上設定');
-
-    const copyBtn = h('button', {
-      class: 'btn', type: 'button',
-      onclick: () => copyText(encodePairCode(sync), copyBtn, '複製配對碼'),
-    }, '複製配對碼');
-
-    const stopBtn = h('button', {
-      class: 'btn btn-ghost', type: 'button',
-      onclick: () => {
-        clearSync();
-        syncNow(); // 狀態改回「未設定」
-        draw();
-        showToast('已停止同步，這台裝置的文章都還在');
+      null, // 分隔線
+      {
+        label: '停止同步',
+        danger: true,
+        onSelect: () => {
+          clearSync();
+          syncNow(); // 狀態改回「未設定」
+          draw();
+          showToast('已停止同步，這台裝置的文章都還在', {
+            label: '復原',
+            duration: 5000,
+            onClick: () => {
+              saveSync(sync);
+              draw();
+              syncNow();
+            },
+          });
+        },
       },
-    }, '停止同步');
+    ]);
+    closeMenu = menu.close;
 
     el.replaceChildren(
       h('div', { class: 'row row-between' }, h('h2', { class: 'card-title' }, '同步'), statusText),
       error,
-      h('div', { class: 'row wrap' }, syncBtn, qrBtn, copyBtn),
-      qrBox,
-      h('div', { class: 'actions' }, stopBtn),
+      h('div', { class: 'row row-between' }, syncBtn, menu.el),
     );
   }
 
@@ -159,6 +161,8 @@ export function syncSection() {
     cleanup: () => {
       stopWatching();
       clearInterval(clock);
+      closeMenu();
+      closeDialog();
     },
   };
 }
@@ -182,7 +186,11 @@ export function renderPair(view, code, ctx) {
   if (isIOSBrowserTab()) {
     const copyBtn = h('button', {
       class: 'btn btn-primary', type: 'button',
-      onclick: () => copyText(encodePairCode(pair), copyBtn, '複製配對碼'),
+      onclick: async () => {
+        const ok = await copyText(encodePairCode(pair));
+        copyBtn.textContent = ok ? '已複製 ✓' : '無法複製';
+        setTimeout(() => { copyBtn.textContent = '複製配對碼'; }, 2000);
+      },
     }, '複製配對碼');
     view.append(h('section', { class: 'settings-section stack' },
       h('h2', { class: 'card-title' }, '在主畫面的 App 完成設定'),
@@ -216,22 +224,101 @@ function qrSvg(text) {
   return qr.createSvgTag({ cellSize: 4, margin: 4, scalable: true });
 }
 
-async function copyText(text, btn, label) {
-  let ok = false;
+// 回傳是否複製成功
+async function copyText(text) {
   try {
     await navigator.clipboard.writeText(text);
-    ok = true;
+    return true;
   } catch {
     // 不支援剪貼簿 API 時，用暫時的輸入框複製
     const box = h('textarea', { style: 'position:fixed;top:0;opacity:0', readOnly: true });
     box.value = text;
     document.body.append(box);
     box.select();
+    let ok = false;
     try { ok = document.execCommand('copy'); } catch { ok = false; }
     box.remove();
+    return ok;
   }
-  btn.textContent = ok ? '已複製 ✓' : '無法複製';
-  setTimeout(() => { btn.textContent = label; }, 2000);
+}
+
+// 「⋯」下拉選單。items：{ label, onSelect, danger } 或 null（分隔線）
+// 點選單外面、按 Esc、選了項目都會關閉。回傳 { el, close }
+function createMenu(items) {
+  const trigger = h('button', {
+    class: 'menu-trigger', type: 'button', 'aria-label': '更多選項',
+    'aria-haspopup': 'menu', 'aria-expanded': 'false',
+  }, icon('more'));
+  const list = h('div', { class: 'menu', role: 'menu', hidden: true },
+    items.map((item) => (item
+      ? h('button', {
+        class: item.danger ? 'menu-item is-danger' : 'menu-item', type: 'button', role: 'menuitem',
+        onclick: () => { close(); item.onSelect(); },
+      }, item.label)
+      : h('div', { class: 'menu-separator', role: 'separator' }))),
+  );
+  const el = h('div', { class: 'menu-wrap' }, trigger, list);
+
+  function onOutside(e) {
+    if (!el.contains(e.target)) close();
+  }
+  function onKey(e) {
+    if (e.key === 'Escape') {
+      close();
+      trigger.focus();
+    }
+  }
+  function open() {
+    list.hidden = false;
+    trigger.setAttribute('aria-expanded', 'true');
+    document.addEventListener('pointerdown', onOutside);
+    document.addEventListener('keydown', onKey);
+  }
+  function close() {
+    if (list.hidden) return;
+    list.hidden = true;
+    trigger.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('pointerdown', onOutside);
+    document.removeEventListener('keydown', onKey);
+  }
+  trigger.addEventListener('click', () => (list.hidden ? open() : close()));
+  return { el, close };
+}
+
+// 配對用的 QR code 彈窗，置中顯示。點右上角 ×、點遮罩或按 Esc 關閉。回傳 close()
+function openPairDialog(sync) {
+  const previousFocus = document.activeElement;
+  const closeBtn = h('button', { class: 'sheet-close', type: 'button', 'aria-label': '關閉' }, '×');
+  const qr = h('div', { class: 'qr', role: 'img', 'aria-label': '配對用的 QR code' });
+  qr.innerHTML = qrSvg(pairUrl(sync));
+  const panel = h('div', { class: 'dialog stack', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'pair-dialog-title' },
+    h('div', { class: 'row row-between' }, h('h2', { class: 'card-title', id: 'pair-dialog-title' }, '配對裝置'), closeBtn),
+    qr,
+    h('p', { class: 'hint' }, '用手機相機掃描，掃了就會自動設定好。QR code 裡含有金鑰，不要截圖或分享給別人。'),
+    h('p', { class: 'hint' }, 'iPhone：掃描後會用 Safari 打開，請在那個畫面按「複製配對碼」，再到主畫面的 German Reader → 設定 → 同步 貼上。'),
+  );
+  const backdrop = h('div', { class: 'dialog-backdrop' }, panel);
+
+  let closed = false;
+  function close() {
+    if (closed) return;
+    closed = true;
+    document.removeEventListener('keydown', onKey);
+    backdrop.classList.remove('is-open');
+    setTimeout(() => backdrop.remove(), 200);
+    previousFocus?.focus?.({ preventScroll: true });
+  }
+  function onKey(e) {
+    if (e.key === 'Escape') close();
+  }
+  backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
+  closeBtn.addEventListener('click', close);
+  document.addEventListener('keydown', onKey);
+
+  document.body.append(backdrop);
+  requestAnimationFrame(() => backdrop.classList.add('is-open'));
+  closeBtn.focus({ preventScroll: true });
+  return close;
 }
 
 function formatTime(t) {
