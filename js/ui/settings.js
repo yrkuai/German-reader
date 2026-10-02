@@ -6,10 +6,9 @@ import { speechSupported, getGermanVoices, onVoicesChanged, speakOnce, cancelSpe
 const SAMPLE = 'Guten Tag! Ich lerne Deutsch, und das macht mir viel Spaß.';
 
 export function renderSettings(view, ctx) {
-  // 設定頁：返回按鈕放在右上角（和設定圖示同一個位置），標題靠左
-  ctx.setBar('設定', null);
+  // 返回鍵在左上角，回到打開設定之前的頁面；電腦上也可以按 Esc
+  ctx.setBar('設定', ctx.previousHash());
   const close = () => ctx.navigate(ctx.previousHash());
-  ctx.addBarAction(h('button', { class: 'bar-back', type: 'button', 'aria-label': '返回', onclick: close }, '←'));
   const onKey = (e) => { if (e.key === 'Escape') close(); };
   document.addEventListener('keydown', onKey);
 
