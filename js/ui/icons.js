@@ -8,7 +8,8 @@ const PATHS = {
   repeat: '<path d="m17 2 3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12"/><path d="m7 22-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/>',
   translate: '<path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/>',
   plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
-  trash: '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/>',
+  // 填滿版垃圾桶（細蓋子、窄桶身、兩道鏤空）
+  trash: '<path d="M9.5 3.5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v1h4.75a.75.75 0 0 1 0 1.5H4.75a.75.75 0 0 1 0-1.5H9.5z" fill="currentColor" stroke="none"/><path fill-rule="evenodd" d="M6.5 7.5h11l-.95 12.6a1.75 1.75 0 0 1-1.75 1.65H9.2a1.75 1.75 0 0 1-1.75-1.65zM10.1 10.5a.6.6 0 0 0-.6.6v6.8a.6.6 0 0 0 1.2 0v-6.8a.6.6 0 0 0-.6-.6zm3.8 0a.6.6 0 0 0-.6.6v6.8a.6.6 0 0 0 1.2 0v-6.8a.6.6 0 0 0-.6-.6z" fill="currentColor" stroke="none"/>',
   speaker: '<path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/>',
 };
 
