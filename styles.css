@@ -278,23 +278,55 @@ select.input { appearance: auto; }
 .empty.spotlight .muted { color: rgb(255 255 255 / 0.85); font-size: 16px; }
 .empty.spotlight .btn-primary { background: #fff; color: #000; }
 
-/* 文章列表：用分隔線區分，不用卡片 */
+/* 文章列表：用分隔線區分，不用卡片；往左滑露出刪除按鈕 */
 .article-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.article-list li { border-bottom: 1px solid var(--hairline); }
-.article-list li:last-child { border-bottom: 0; }
+/* 每一列延伸到螢幕邊緣，滑開時文字直接滑出畫面；分隔線維持左右內縮 */
+.swipe-row { position: relative; overflow: hidden; margin: 0 calc(-1 * var(--gutter)); }
+.swipe-row::after {
+  content: "";
+  position: absolute;
+  left: var(--gutter);
+  right: var(--gutter);
+  bottom: 0;
+  height: 1px;
+  background: var(--hairline);
+}
+.swipe-row:last-child::after { display: none; }
+.swipe-row.is-removing { height: 0 !important; transition: height 0.2s ease; }
+.swipe-delete {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 80px;
+  border: 0;
+  background: var(--danger);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
 .article-item {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 16px 0;
+  padding: 16px var(--gutter);
+  background: var(--canvas); /* 蓋住後面的刪除按鈕 */
   color: var(--ink);
   text-decoration: none;
-  transition: opacity 0.15s;
+  touch-action: pan-y; /* 左右滑動交給程式處理，上下照常捲動 */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  transition: transform 0.2s ease;
 }
+.article-item.is-dragging { transition: none; }
 @media (hover: hover) {
-  .article-item:hover { opacity: 0.7; }
+  .article-item:hover .article-title,
+  .article-item:hover .article-meta { opacity: 0.7; }
 }
-.article-item:active { opacity: 0.6; }
 .article-title {
   min-width: 0;
   font-size: 18px;
@@ -664,9 +696,33 @@ select.input { appearance: auto; }
   pointer-events: none;
 }
 .toast.is-shown { opacity: 1; transform: translate(-50%, 0); }
+.toast.has-action {
+  top: auto;
+  bottom: calc(24px + var(--player-h) + env(safe-area-inset-bottom, 0px)); /* 要停留比較久，放在下方不擋內容 */
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 6px 6px 20px;
+  transform: translate(-50%, 8px);
+  pointer-events: auto;
+}
+.toast.has-action.is-shown { transform: translate(-50%, 0); }
+.toast-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.toast-action {
+  flex: none;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--on-primary);
+  color: var(--primary);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .sheet, .sheet-backdrop, .zh-toggle, .btn, .ctrl, .toast { transition: none; }
+  .sheet, .sheet-backdrop, .zh-toggle, .btn, .ctrl, .toast, .article-item, .swipe-row.is-removing { transition: none; }
 }
 
 @media (min-width: 768px) {

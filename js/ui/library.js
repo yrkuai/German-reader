@@ -1,5 +1,7 @@
 import { h } from './dom.js';
-import { listArticles, saveArticle, createArticle } from '../storage.js';
+import { listArticles, saveArticle, createArticle, deleteArticle } from '../storage.js';
+import { createSwipeGroup } from './swipe.js';
+import { showToast } from './toast.js';
 import { splitSentences } from '../segmenter.js';
 
 export function renderLibrary(view, ctx) {
@@ -25,22 +27,53 @@ export function renderLibrary(view, ctx) {
     return;
   }
 
-  view.append(
-    h('ul', { class: 'article-list' },
-      articles.map((a) => {
-        const translated = a.sentences.filter((s) => s.zh).length;
-        const status = translated === 0
-          ? '未翻譯'
-          : translated === a.sentences.length ? '已翻譯' : `已翻譯 ${translated}/${a.sentences.length}`;
-        return h('li', {},
-          h('a', { class: 'article-item', href: `#/read/${encodeURIComponent(a.id)}` },
-            h('span', { class: 'article-title' }, a.title),
-            h('span', { class: 'article-meta' }, `${a.sentences.length} 句 · ${status} · ${formatDate(a.createdAt)}`),
-          ),
-        );
-      }),
-    ),
-  );
+  // 往左滑露出刪除按鈕；刪除後顯示「復原」
+  const swipe = createSwipeGroup();
+  const list = h('ul', { class: 'article-list' });
+
+  // 重新整理列表，但保留捲動位置
+  const rerender = () => {
+    const y = window.scrollY;
+    ctx.navigate('#/');
+    window.scrollTo(0, y);
+  };
+
+  function remove(article, li) {
+    deleteArticle(article.id);
+    li.style.height = `${li.offsetHeight}px`;
+    requestAnimationFrame(() => li.classList.add('is-removing'));
+    setTimeout(() => {
+      li.remove();
+      if (!list.children.length) rerender();
+    }, 220);
+    showToast(`已刪除「${truncate(article.title, 16)}」`, {
+      label: '復原',
+      duration: 5000,
+      onClick: () => {
+        saveArticle(article);
+        rerender();
+      },
+    });
+  }
+
+  for (const a of articles) {
+    const translated = a.sentences.filter((s) => s.zh).length;
+    const status = translated === 0
+      ? '未翻譯'
+      : translated === a.sentences.length ? '已翻譯' : `已翻譯 ${translated}/${a.sentences.length}`;
+    const content = h('a', { class: 'article-item', href: `#/read/${encodeURIComponent(a.id)}` },
+      h('span', { class: 'article-title' }, a.title),
+      h('span', { class: 'article-meta' }, `${a.sentences.length} 句 · ${status} · ${formatDate(a.createdAt)}`),
+    );
+    const action = h('button', { class: 'swipe-delete', type: 'button', 'aria-label': `刪除「${a.title}」` }, '刪除');
+    const li = h('li', { class: 'swipe-row' }, action, content);
+    action.addEventListener('click', () => remove(a, li));
+    swipe.attach(li, content, action);
+    list.append(li);
+  }
+
+  view.append(list);
+  return () => swipe.destroy();
 }
 
 export function renderNewArticle(view, ctx) {
