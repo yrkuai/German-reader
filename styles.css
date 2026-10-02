@@ -312,7 +312,7 @@ select.input { appearance: auto; }
   font-weight: 500;
   cursor: pointer;
 }
-.swipe-delete .icon svg { width: 16px; height: 16px; }
+.swipe-delete .icon svg { width: 20px; height: 20px; }
 .article-item {
   position: relative;
   display: flex;
