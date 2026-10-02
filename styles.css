@@ -155,7 +155,7 @@ a { color: var(--link); }
   transition: background 0.15s;
 }
 .bar-back:hover { background: var(--surface-2); }
-button.bar-back { border: 0; padding: 0; font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+button.bar-back { border: 0; padding: 0; font: inherit; font-size: 1.15rem; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .bar-back .icon svg { width: 20px; height: 20px; }
 
 .bar-title {
@@ -313,7 +313,7 @@ select.input { appearance: auto; }
 .sentence {
   display: flex;
   gap: 12px;
-  padding: 14px 16px 14px 10px;
+  padding: 14px; /* 句號＋文字視為內容，四邊內距一致 */
   border-radius: var(--r-xl);
   cursor: pointer;
   scroll-margin: 80px 0 calc(80px + var(--player-h));
@@ -333,7 +333,7 @@ select.input { appearance: auto; }
   color: var(--ink-muted);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
-  text-align: right;
+  text-align: left;
 }
 .sentence.is-current .sentence-no { color: var(--ink); font-weight: 600; }
 .sentence.is-playing .sentence-no { color: var(--accent); }
