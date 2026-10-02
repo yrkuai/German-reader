@@ -52,9 +52,9 @@ export function renderTranslate(view, id, ctx) {
     setTimeout(() => { btn.textContent = original; }, 2000);
   }
 
-  // ---------- 步驟 3：貼回結果 ----------
+  // ---------- 步驟 2：貼回結果 ----------
   const responseInput = h('textarea', {
-    class: 'input textarea', rows: 8, spellcheck: false,
+    class: 'input textarea', rows: 5, spellcheck: false,
     placeholder: '把 AI 的回覆整段貼在這裡…', 'aria-label': 'AI 的回覆',
   });
   const importBtn = h('button', { class: 'btn btn-primary', type: 'button', disabled: true }, '匯入');
@@ -99,26 +99,32 @@ export function renderTranslate(view, id, ctx) {
     }
   });
 
-  view.append(
-    h('p', { class: 'muted intro' }, '網站不會自己連線到 AI。請照下面三個步驟，在免費的 ChatGPT 或 Claude 和這裡之間複製貼上。'),
-    h('section', { class: 'card stack' },
+  // 版面：兩個步驟，用分隔線區分（和設定頁一致），讓「貼回結果」一打開就看得到
+  const step1Hint = h('p', { class: 'hint' },
+    batches.length > 1
+      ? `貼到 ChatGPT 或 Claude，再複製回覆內容。文章有 ${total} 句，分成 ${batches.length} 批，避免回覆太長被截斷；每一批都要做一次，順序不拘。`
+      : '貼到 ChatGPT 或 Claude，再複製回覆內容。');
+
+  const step1 = batches.length === 1
+    ? h('section', { class: 'settings-section stack' },
+      h('div', { class: 'row row-between' },
+        h('h2', { class: 'card-title' }, '1. 複製指令', batchRows[0].state),
+        batchRows[0].row.querySelector('button'),
+      ),
+      step1Hint,
+      fallbackBox,
+    )
+    : h('section', { class: 'settings-section stack' },
       h('h2', { class: 'card-title' }, '1. 複製指令'),
-      batches.length > 1
-        ? h('p', { class: 'hint' }, `文章有 ${total} 句，分成 ${batches.length} 批，避免 AI 的回覆太長被截斷。每一批都要做一次步驟 1～3，順序不拘。`)
-        : null,
+      step1Hint,
       h('ul', { class: 'batches' }, batchRows.map((r) => r.row)),
       fallbackBox,
-    ),
-    h('section', { class: 'card stack' },
-      h('h2', { class: 'card-title' }, '2. 貼到 AI'),
-      h('p', { class: 'hint' }, '貼上指令後送出。等它回覆完，按回覆中程式碼區塊右上角的「複製」。'),
-      h('div', { class: 'row wrap' },
-        h('a', { class: 'btn', href: 'https://chatgpt.com/', target: '_blank', rel: 'noopener' }, '開啟 ChatGPT'),
-        h('a', { class: 'btn', href: 'https://claude.ai/new', target: '_blank', rel: 'noopener' }, '開啟 Claude'),
-      ),
-    ),
-    h('section', { class: 'card stack' },
-      h('h2', { class: 'card-title' }, '3. 貼回結果'),
+    );
+
+  view.append(
+    step1,
+    h('section', { class: 'settings-section stack' },
+      h('h2', { class: 'card-title' }, '2. 貼回結果'),
       responseInput,
       h('div', { class: 'actions' }, importBtn),
       result,
