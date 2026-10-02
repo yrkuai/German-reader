@@ -1,5 +1,6 @@
 const PATHS = {
   play: '<path d="M8 5.5v13l11-6.5z" fill="currentColor" stroke="none"/>',
+  pause: '<rect x="6.5" y="5.5" width="4" height="13" rx="1" fill="currentColor" stroke="none"/><rect x="13.5" y="5.5" width="4" height="13" rx="1" fill="currentColor" stroke="none"/>',
   stop: '<rect x="6.5" y="6.5" width="11" height="11" rx="1.5" fill="currentColor" stroke="none"/>',
   first: '<path d="M4.5 6v12"/><path d="M12.5 6.5 6.5 12l6 5.5z" fill="currentColor"/><path d="M19.5 6.5 13.5 12l6 5.5z" fill="currentColor"/>',
   prev: '<path d="M6.5 6v12"/><path d="M18 6.5 9.5 12l8.5 5.5z" fill="currentColor"/>',

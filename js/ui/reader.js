@@ -67,10 +67,12 @@ export function renderReader(view, id, ctx) {
     class: 'ctrl ctrl-wide', type: 'button', 'aria-label': '單句重複',
     onclick: () => (player.state.mode === 'loop' ? player.stop() : player.loop()),
   }, icon('repeat'), h('span', { 'aria-hidden': 'true' }, '單句'));
+  // 整篇播放中顯示暫停圖示；按下會停在目前這句，再按一次從這句繼續
+  let allIcon = icon('play');
   const allBtn = h('button', {
     class: 'ctrl ctrl-wide', type: 'button', 'aria-label': '整篇播放',
     onclick: () => (player.state.mode === 'all' ? player.stop() : player.playAll()),
-  }, icon('play'), h('span', { 'aria-hidden': 'true' }, '整篇'));
+  }, allIcon, h('span', { 'aria-hidden': 'true' }, '整篇'));
   const stopBtn = h('button', { class: 'ctrl', type: 'button', 'aria-label': '停止', onclick: () => player.stop() }, icon('stop'));
 
   // 錯誤訊息另外放一行，狀態列永遠只有一行，播放列高度不會跳動
@@ -162,6 +164,14 @@ export function renderReader(view, id, ctx) {
     loopBtn.setAttribute('aria-pressed', String(mode === 'loop'));
     allBtn.classList.toggle('is-active', mode === 'all');
     allBtn.setAttribute('aria-pressed', String(mode === 'all'));
+    const allName = mode === 'all' ? 'pause' : 'play';
+    if (allIcon.dataset.name !== allName) {
+      const next = icon(allName);
+      next.dataset.name = allName;
+      allIcon.replaceWith(next);
+      allIcon = next;
+      allBtn.setAttribute('aria-label', mode === 'all' ? '暫停整篇播放' : '整篇播放');
+    }
     stopBtn.disabled = !playing;
     firstBtn.disabled = index === 0;
     prevBtn.disabled = index === 0;
