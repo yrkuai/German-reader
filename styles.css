@@ -313,7 +313,7 @@ select.input { appearance: auto; }
 .sentence {
   display: flex;
   gap: 8px;
-  padding: 14px; /* 句號＋文字視為內容，四邊內距一致 */
+  padding: 14px 12px; /* 句號＋文字視為內容，左右內距一致 */
   border-radius: var(--r-xl);
   cursor: pointer;
   scroll-margin: 80px 0 calc(80px + var(--player-h));
