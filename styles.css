@@ -1,6 +1,6 @@
 /* 字級角色（我的文章頁、設定頁）：
-   頁面大標題 30/500 · 內容標題 18/500 · 導覽 17/600 · 設定頁區塊標題 17/600
-   一般文字／項目名稱 17/500 · 操作 14/500 · 輔助說明 14/400 灰色 */
+   頁面大標題 30/500 · 導覽 20/600 · 內容標題 18/500 · 設定頁區塊標題 17/600
+   一般文字／項目名稱 17/500 · 文字按鈕 17/500（播放列與語速按鈕 14/500） · 輔助說明 14/400 灰色 */
 
 /* 設計風格：參考 Framer 設計系統
    - 深色：近黑畫布 #090909、白色膠囊主按鈕、炭灰卡片；藍色 #0099ff 只用在連結、焦點、選取
@@ -163,7 +163,7 @@ button.bar-back { border: 0; padding: 0; font: inherit; font-size: 1.15rem; curs
   min-width: 0;
   margin: 0;
   padding: 0 8px;
-  font-size: 17px;
+  font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.02em;
   white-space: nowrap;
@@ -219,7 +219,7 @@ button.bar-back { border: 0; padding: 0; font: inherit; font-size: 1.15rem; curs
   background: var(--surface-1);
   color: var(--ink);
   font: inherit;
-  font-size: 14px;
+  font-size: 17px;
   font-weight: 500;
   letter-spacing: -0.01em;
   text-decoration: none;
@@ -235,7 +235,7 @@ button.bar-back { border: 0; padding: 0; font: inherit; font-size: 1.15rem; curs
 .btn-ghost { background: transparent; color: var(--ink-muted); }
 .btn-ghost:hover { background: var(--surface-1); color: var(--ink); }
 .btn-danger { background: var(--danger); color: #fff; }
-.btn-icon-text .icon svg { width: 16px; height: 16px; }
+.btn-icon-text .icon svg { width: 20px; height: 20px; }
 .btn-danger:hover { background: var(--danger); opacity: 0.88; }
 
 .input {
@@ -478,7 +478,7 @@ select.input { appearance: auto; }
   border-radius: var(--r-pill);
   background: #fff;
   color: #000;
-  font-size: 14px;
+  font-size: 17px;
   text-decoration: none;
 }
 
@@ -723,6 +723,7 @@ select.input { appearance: auto; }
   background: var(--on-primary);
   color: var(--primary);
   font: inherit;
+  font-size: 17px;
   font-weight: 600;
   cursor: pointer;
 }
