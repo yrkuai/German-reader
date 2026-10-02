@@ -16,7 +16,7 @@ export function renderLibrary(view, ctx) {
 
   if (!articles.length) {
     view.append(
-      h('div', { class: 'empty' },
+      h('div', { class: 'empty spotlight' },
         h('p', {}, '還沒有文章。'),
         h('p', { class: 'muted' }, '貼上一篇德語文章，就可以一句一句練習。'),
         h('a', { class: 'btn btn-primary', href: '#/new' }, '貼上第一篇文章'),

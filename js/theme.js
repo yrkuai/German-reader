@@ -1,7 +1,7 @@
 // 外觀：'auto' 跟著裝置的深色模式，'light' / 'dark' 固定
 // index.html 的 <head> 另有一段小程式，在畫面出現前先套用，避免閃一下
 
-const BAR_COLORS = { light: '#f6f3ec', dark: '#161a19' };
+const BAR_COLORS = { light: '#ffffff', dark: '#090909' };
 
 export function applyTheme(theme) {
   const root = document.documentElement;

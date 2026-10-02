@@ -194,7 +194,7 @@ export function renderReader(view, id, ctx) {
 
   view.append(
     notice,
-    translateBanner,
+    translateBanner || '',
     sentenceList,
     h('div', { class: 'article-actions' },
       missing.length ? null : h('a', { class: 'btn btn-ghost', href: translateHash }, '重新匯入翻譯'),
