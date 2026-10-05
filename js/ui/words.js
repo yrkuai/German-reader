@@ -41,8 +41,9 @@ export function renderWords(view, ctx) {
   const weakCount = items.filter((i) => i.entry.weak).length;
   if (settings.vocabScope === 'weak' && !weakCount) settings.vocabScope = 'all';
 
-  const flashBtn = h('a', { class: 'btn btn-primary words-start', href: '#/review/flash' }, '閃卡');
-  const clozeBtn = h('a', { class: 'btn btn-primary words-start', href: '#/review/cloze' }, '例句填空');
+  // 練習入口放在標題列右上角（文字按鈕）
+  ctx.addBarAction(h('a', { class: 'bar-text words-start', href: '#/review/flash' }, '閃卡'));
+  ctx.addBarAction(h('a', { class: 'bar-text words-start', href: '#/review/cloze' }, '填空'));
   const scopeButtons = [['all', `全部 ${items.length}`], ['weak', `不熟 ${weakCount}`]].map(([value, label]) =>
     h('button', {
       class: 'speed', type: 'button', role: 'radio', 'data-scope': value, disabled: value === 'weak' && !weakCount,
@@ -138,9 +139,8 @@ export function renderWords(view, ctx) {
   }
 
   view.append(
-    h('section', { class: 'stack words-head' },
+    h('section', { class: 'words-head' },
       h('div', { class: 'speed-group', role: 'radiogroup', 'aria-label': '練習範圍' }, scopeButtons),
-      h('div', { class: 'row' }, flashBtn, clozeBtn),
     ),
     list,
   );

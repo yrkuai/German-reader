@@ -177,7 +177,24 @@ button.bar-back { border: 0; padding: 0; font: inherit; font-size: 1.15rem; curs
 /* 沒有返回按鈕時（我的文章頁），標題文字直接對齊左邊距 */
 .bar-back[hidden] + .bar-title { padding-left: 0; }
 
-.bar-actions { display: flex; align-items: center; }
+.bar-actions { display: flex; align-items: center; gap: 6px; }
+/* 標題列右上角的文字按鈕（單字本的「閃卡」「填空」） */
+.bar-text {
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: var(--r-pill);
+  background: var(--surface-1);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+}
+.bar-text:hover { background: var(--surface-2); }
 #bar-words:not([hidden]) + #bar-settings { margin-left: 4px; }
 .bar-actions:empty { display: none; }
 
@@ -742,9 +759,7 @@ select.input { appearance: auto; }
 .warn { padding: 12px 16px; border-radius: var(--r-md); background: var(--canvas); font-size: 13px; }
 
 /* ---------- 單字本 ---------- */
-.words-head { margin-bottom: 12px; align-items: flex-start; }
-.words-head .row { align-self: stretch; }
-.words-start { flex: 1; }
+.words-head { margin-bottom: 12px; }
 .word-item { flex-direction: row; align-items: center; gap: 12px; padding-top: 12px; padding-bottom: 12px; cursor: pointer; }
 .word-speak { width: 40px; height: 40px; }
 .word-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
