@@ -22,7 +22,8 @@
   --canvas: #ffffff;
   --surface-1: #f4f4f4;
   --surface-2: #e9e9e9;
-  --current: #f4f4f4;      /* 閱讀畫面目前的句子 */
+  --current: #f4f4f4;      /* 閱讀畫面目前的句子（閃卡、填空卡片也用） */
+  --current-muted: #6b6b6b; /* 灰底上的灰色字 */
   --hairline: #e3e3e3;
   --hairline-soft: #efefef;
   --ink: #000000;
@@ -67,7 +68,8 @@
     --canvas: #090909;
     --surface-1: #141414;
     --surface-2: #1c1c1c;
-    --current: #363636;
+    --current: #424242;
+    --current-muted: #b8b8b8;
     --hairline: #262626;
     --hairline-soft: #1a1a1a;
     --ink: #ffffff;
@@ -86,7 +88,8 @@
   --canvas: #090909;
   --surface-1: #141414;
   --surface-2: #1c1c1c;
-  --current: #363636;
+  --current: #424242;
+  --current-muted: #b8b8b8;
   --hairline: #262626;
   --hairline-soft: #1a1a1a;
   --ink: #ffffff;
@@ -400,6 +403,8 @@ select.input { appearance: auto; }
 }
 /* 目前的句子：淺灰底（播放中也一樣，不另外標示）；深色模式用比滑過時更亮的灰，才看得出來 */
 .sentence.is-current { background: var(--current); }
+/* 灰底卡片裡的灰色字（翻譯、提示等）用調亮的灰，深色模式下才看得清楚 */
+.sentence.is-current, .flashcard, .cloze-card { --ink-muted: var(--current-muted); }
 
 .sentence-no {
   flex: none;
