@@ -112,6 +112,20 @@ export function renderFlashcards(view, ctx) {
   return () => cancelSpeech();
 }
 
+// 考題的「翻譯」按鈕：按下變深色並顯示翻譯，再按一次隱藏（例句填空、動詞練習共用）
+export function translateToggle(onChange) {
+  let on = false;
+  const btn = h('button', {
+    class: 'btn btn-icon-text', type: 'button', 'aria-pressed': 'false',
+    onclick: () => {
+      on = !on;
+      btn.setAttribute('aria-pressed', String(on));
+      onChange(on);
+    },
+  }, icon('translate'), '翻譯');
+  return btn;
+}
+
 // 換掉 el 的內容，略過 null（replaceChildren 會把 null 變成文字「null」）
 function fill(el, ...children) {
   el.replaceChildren(...children.filter((c) => c != null && c !== false));
@@ -123,8 +137,9 @@ function practicePool(settings) {
   return settings.vocabScope === 'weak' ? all.filter((e) => e.weak) : all;
 }
 
-// 一輪結束的結果畫面：第一次就答對幾個，第一次答錯的字列出來
-function showSummary(body, ctx, round, againHash) {
+// 一輪結束的結果畫面：第一次就答對幾個，第一次答錯的列出來（動詞練習也共用）
+// labelOf：答錯清單裡每一項顯示的文字
+export function showSummary(body, ctx, round, againHash, labelOf = (m) => m.d.display) {
   cancelSpeech();
   const missed = round.firstTryWrong();
   body.replaceChildren(h('div', { class: 'empty flash-done' },
@@ -133,7 +148,7 @@ function showSummary(body, ctx, round, againHash) {
     missed.length
       ? h('div', { class: 'flash-missed' },
         h('p', { class: 'muted' }, '第一次答錯（已標成「不熟」）：'),
-        h('ul', {}, missed.map((m) => h('li', { lang: 'de' }, m.d.display))),
+        h('ul', {}, missed.map((m) => h('li', { lang: 'de' }, labelOf(m)))),
       )
       : null,
     h('div', { class: 'actions flash-done-actions' },
@@ -176,20 +191,10 @@ export function renderCloze(view, ctx) {
   const progress = h('span', { class: 'hint flash-progress' });
   const sentenceEl = h('p', { class: 'cloze-sentence', lang: 'de' });
   const zhEl = h('p', { class: 'cloze-zh' });
-  // 中文翻譯：右上角的翻譯按鈕開關，每次進來預設關閉（和閱讀頁同一顆按鈕）
+  // 中文翻譯：工具列的「翻譯」按鈕開關，每次進來預設關閉
   let showZh = false;
-  const zhToggle = h('button', {
-    class: 'zh-toggle', type: 'button', 'aria-label': '顯示中文翻譯', 'aria-pressed': 'false',
-    onclick: () => {
-      showZh = !showZh;
-      zhToggle.setAttribute('aria-pressed', String(showZh));
-      zhToggle.title = showZh ? '隱藏中文翻譯' : '顯示中文翻譯';
-      applyZh();
-    },
-  }, icon('translate'));
-  zhToggle.title = '顯示中文翻譯';
-  ctx.addBarAction(zhToggle);
   const applyZh = () => { zhEl.hidden = !showZh || !q.zh; };
+  const zhToggle = translateToggle((on) => { showZh = on; applyZh(); });
   const hintEl = h('p', { class: 'cloze-hint', 'aria-live': 'polite' });
   const hintBtn = h('button', {
     class: 'btn', type: 'button',
@@ -207,7 +212,7 @@ export function renderCloze(view, ctx) {
     autocorrect: 'off', enterkeyhint: 'done', 'aria-label': '填入空格的單字',
   });
   const checkBtn = h('button', { class: 'btn btn-primary', type: 'button', onclick: () => submit() }, '確認');
-  const feedback = h('p', { class: 'cloze-feedback', 'aria-live': 'polite' });
+  const feedback = h('div', { class: 'cloze-feedback', 'aria-live': 'polite' });
   const nextBtn = h('button', { class: 'btn btn-primary', type: 'button', onclick: () => next() }, '下一題');
   input.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' || e.isComposing) return;
@@ -218,7 +223,8 @@ export function renderCloze(view, ctx) {
   const body = h('div', { class: 'stack' },
     h('div', { class: 'row row-between' }, h('span', { class: 'hint' }, '填入句子裡原本的寫法'), progress),
     h('div', { class: 'cloze-card stack' }, sentenceEl, zhEl, hintEl),
-    h('div', { class: 'row' }, playBtn, hintBtn),
+    // 依透露答案的多寡排列：聽整句 → 翻譯 → 提示
+    h('div', { class: 'row quiz-tools' }, playBtn, zhToggle, hintBtn),
     h('div', { class: 'row' }, input, checkBtn),
     feedback,
     h('div', { class: 'actions' }, nextBtn),
@@ -256,15 +262,14 @@ export function renderCloze(view, ctx) {
     if (!ok) item.tries++;
     sentenceEl.replaceChildren(q.cloze.before, blank(q.cloze.answer, ok ? 'ok' : 'wrong'), q.cloze.after);
     feedback.replaceChildren(ok
-      ? h('span', { class: 'ok' }, '✓ 答對了')
-      : h('span', { class: 'error' },
+      ? h('p', { class: 'ok' }, '✓ 答對了')
+      : h('p', { class: 'error' },
         result === 'case' ? '名詞要大寫。' : '答錯了。', '正確答案：', h('b', { lang: 'de' }, q.cloze.answer)));
     input.disabled = true;
     checkBtn.hidden = true;
     nextBtn.hidden = false;
     nextBtn.focus({ preventScroll: true });
-    // 答錯時唸出整句，聽聽正確的用法
-    if (!ok) speak(q.de);
+    // 作答後不自動唸；要聽就按工具列的「聽整句」
   }
 
   function next() {

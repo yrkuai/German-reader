@@ -10,6 +10,8 @@ const DELETED_KEY = 'deleted';   // 刪除紀錄 { id: 刪除時間 }，同步�
 const SYNC_KEY = 'sync';         // 同步設定 { token, gistId, lastSyncAt }，只存在這台裝置
 const VOCAB_KEY = 'vocab';                // 單字本 { key: Entry }，格式見 PLAN-vocab.md
 const VOCAB_DELETED_KEY = 'vocabDeleted'; // 單字的刪除紀錄 { key: 刪除時間 }
+const VERBS_KEY = 'verbs';                // 動詞練習 { key: Verb }，格式見 PLAN-verbs.md
+const VERBS_DELETED_KEY = 'verbsDeleted'; // 動詞的刪除紀錄 { key: 刪除時間 }
 
 const DELETED_KEEP_MS = 90 * 24 * 60 * 60 * 1000;
 
@@ -24,6 +26,8 @@ export const DEFAULT_SETTINGS = {
   showZh: true,
   vocabScope: 'all',  // 單字本的練習範圍 'all' 全部 | 'weak' 只練不熟的
   flashDir: 'de',     // 閃卡方向 'de' 德→中 | 'zh' 中→德
+  // 動詞總練習：all＝全部動詞（之後新增的也算）；否則只練 keys；size＝一輪題數
+  verbMix: { all: true, keys: [], size: 20 },
 };
 
 // localStorage 不能用時（無痕模式、被封鎖）退回記憶體，至少這次瀏覽還能用
@@ -134,11 +138,91 @@ export function getDeleted() {
 }
 
 // 同步後一次寫回所有資料（不觸發變動通知，避免又排一次同步）
-export function replaceAll(articles, deleted, vocab, vocabDeleted) {
+export function replaceAll({ articles, deleted, vocab, vocabDeleted, verbs, verbsDeleted }) {
   write(DELETED_KEY, deleted);
   if (vocab) write(VOCAB_KEY, vocab);
   if (vocabDeleted) write(VOCAB_DELETED_KEY, vocabDeleted);
+  if (verbs) write(VERBS_KEY, verbs);
+  if (verbsDeleted) write(VERBS_DELETED_KEY, verbsDeleted);
   return write(ARTICLES_KEY, articles);
+}
+
+// ---------- 動詞練習 ----------
+
+export function loadVerbs() {
+  const verbs = read(VERBS_KEY, {});
+  return verbs && typeof verbs === 'object' && !Array.isArray(verbs) ? verbs : {};
+}
+
+export function getVerbsDeleted() {
+  return readDeleted(VERBS_DELETED_KEY);
+}
+
+function writeVerbs(verbs, kind) {
+  const ok = write(VERBS_KEY, verbs);
+  notify(kind);
+  return ok;
+}
+
+function setVerbsDeleted(keys, add) {
+  const deleted = getVerbsDeleted();
+  for (const key of keys) {
+    if (add) deleted[key] = Date.now();
+    else delete deleted[key];
+  }
+  write(VERBS_DELETED_KEY, deleted);
+}
+
+// 新增動詞（已經存在的不覆蓋）
+export function addVerbs(list) {
+  const verbs = loadVerbs();
+  const added = list.filter((v) => !verbs[v.key]);
+  for (const v of added) verbs[v.key] = v;
+  setVerbsDeleted(added.map((v) => v.key), false);
+  writeVerbs(verbs, 'content');
+  return added.length;
+}
+
+// 增加例句：updates [{ key, sentences }]，接在原本的例句後面；回傳增加的句數
+export function addVerbSentences(updates) {
+  const verbs = loadVerbs();
+  let count = 0;
+  for (const { key, sentences } of updates) {
+    const verb = verbs[key];
+    if (!verb) continue;
+    verb.sentences = [...verb.sentences, ...sentences];
+    verb.updatedAt = Date.now();
+    count += sentences.length;
+  }
+  if (count) writeVerbs(verbs, 'content');
+  return count;
+}
+
+// 刪除動詞；回傳被刪除的資料（給「復原」用）
+export function removeVerb(key) {
+  const verbs = loadVerbs();
+  const verb = verbs[key];
+  if (!verb) return null;
+  delete verbs[key];
+  setVerbsDeleted([key], true);
+  writeVerbs(verbs, 'content');
+  return verb;
+}
+
+export function restoreVerb(verb) {
+  const verbs = loadVerbs();
+  verbs[verb.key] = { ...verb, updatedAt: Date.now() };
+  setVerbsDeleted([verb.key], false);
+  return writeVerbs(verbs, 'content');
+}
+
+// 練習結果，記在「動詞＋人稱」上：第一次答錯標成不熟，第一次就答對取消不熟
+export function setVerbWeak(key, person, weak) {
+  const verbs = loadVerbs();
+  const verb = verbs[key];
+  if (!verb) return;
+  verb.weak = { ...(verb.weak || {}), [person]: { weak, at: Date.now() } };
+  writeVerbs(verbs, 'progress');
 }
 
 // ---------- 單字本 ----------

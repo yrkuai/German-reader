@@ -195,6 +195,23 @@ button.bar-back { border: 0; padding: 0; font: inherit; font-size: 1.15rem; curs
   transition: background 0.15s;
 }
 .bar-text:hover { background: var(--surface-2); }
+/* 標題列右上角的純文字按鈕（動詞頁的「總練習」）：沒有外框和底色 */
+.bar-link {
+  height: 40px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.bar-link:hover { opacity: 0.7; }
+.bar-link:focus:not(:focus-visible) { box-shadow: none; }
+#bar-verbs:not([hidden]) + #bar-words,
 #bar-words:not([hidden]) + #bar-settings { margin-left: 4px; }
 .bar-actions:empty { display: none; }
 
@@ -853,6 +870,45 @@ select.input { appearance: auto; }
 .cloze-input { font-size: 17px; }
 .cloze-feedback { margin: 0; min-height: 1.5em; }
 .cloze-feedback b { font-weight: 600; }
+/* 考題工具列：聽整句、翻譯、提示 */
+.quiz-tools { flex-wrap: wrap; }
+.quiz-tools .btn[aria-pressed="true"],
+.quiz-tools .btn[aria-pressed="true"]:hover { background: var(--primary); color: var(--on-primary); }
+.cloze-feedback p { margin: 0; }
+
+/* ---------- 動詞 ---------- */
+.verb-meta { margin-left: 8px; color: var(--ink-muted); font-size: 14px; font-weight: 400; letter-spacing: 0; }
+.verb-forms { color: var(--ink-muted); font-size: 14px; line-height: 1.5; }
+.verb-form { white-space: nowrap; }
+.verb-change { background: none; color: var(--accent); font-weight: 600; }
+.verb-practice { flex: none; height: 36px; padding: 0 12px; font-size: 14px; }
+.verb-detail { margin-top: 14px; }
+.verb-table { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; font-size: 17px; }
+.verb-table dt { color: var(--ink-muted); }
+.verb-table dd { margin: 0; font-weight: 500; }
+.verb-tip { margin: 10px 0 0; color: var(--ink-muted); font-size: 14px; line-height: 1.5; }
+.verb-hint { display: flex; flex-direction: column; gap: 4px; }
+.verb-hint:empty { display: none; }
+.verb-hint .verb-tip { margin: 0; letter-spacing: 0; }
+.verb-subject { font-weight: 600; }
+.verb-inputs { flex: 1; min-width: 0; }
+.verb-inputs .cloze-input { flex: 1; min-width: 0; }
+.verb-inputs .verb-dots { display: none; color: var(--ink-muted); }
+.verb-inputs.is-two .verb-dots { display: inline; }
+.verb-inputs .cloze-input[hidden] { display: none; }
+.verb-wrong p { margin: 0; }
+.verb-progress { justify-content: flex-end; }
+.verb-inf { margin-left: 4px; white-space: nowrap; }
+.verb-tabs { margin-bottom: 8px; }
+.verb-tabs .speed { text-decoration: none; padding: 0 16px; }
+/* 勾選清單（總練習、增加例句） */
+.check { display: flex; align-items: center; gap: 10px; min-height: 40px; cursor: pointer; }
+.check input { width: 20px; height: 20px; margin: 0; accent-color: var(--primary); flex: none; }
+.check-all { font-weight: 600; }
+.check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0 12px; }
+.mix-sheet { display: flex; flex-direction: column; gap: 10px; max-height: 85vh; overflow-y: auto; }
+.mix-sheet .sheet-handle { margin-bottom: 4px; }
+.mix-size { padding-top: 6px; border-top: 1px solid var(--hairline); }
 
 /* ---------- 單字抽屜 ---------- */
 .sheet-backdrop {

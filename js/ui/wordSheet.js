@@ -6,7 +6,8 @@ import { icon } from './icons.js';
 // grammar：名詞的冠詞／複數或動詞原形（沒有就不顯示）
 // mark：{ marked, onToggle } 顯示 ☆／★ 按鈕；onToggle() 回傳切換後是否已標記
 // example：單字本用，顯示出處句子（片段陣列 [{ text, hit }]，hit 的字加粗）
-export function openWordSheet({ word, grammar, meaning, onSpeak, onClose, mark, example }) {
+// extra：放在意思下面的額外內容（動詞的變化表）
+export function openWordSheet({ word, grammar, meaning, onSpeak, onClose, mark, example, extra }) {
   const previousFocus = document.activeElement;
 
   const closeBtn = h('button', { class: 'sheet-close', type: 'button', 'aria-label': '關閉' }, '×');
@@ -37,6 +38,7 @@ export function openWordSheet({ word, grammar, meaning, onSpeak, onClose, mark, 
     meaning
       ? h('p', { class: 'sheet-meaning' }, meaning)
       : h('p', { class: 'sheet-meaning is-empty' }, '沒有翻譯資料。先匯入這篇文章的翻譯，就能看到單字的意思。'),
+    extra || null,
     example
       ? h('div', { class: 'sheet-example' },
         h('p', { class: 'sheet-example-de', lang: 'de' }, example.parts.map((p) => (p.hit ? h('b', {}, p.text) : p.text))),

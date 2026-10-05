@@ -5,6 +5,8 @@ import { renderTranslate } from './ui/translate.js';
 import { renderPair } from './ui/sync.js';
 import { renderWords } from './ui/words.js';
 import { renderFlashcards, renderCloze } from './ui/review.js';
+import { renderVerbs, renderNewVerbs } from './ui/verbs.js';
+import { renderVerbPractice, renderVerbMix } from './ui/verbPractice.js';
 import { startSync } from './sync.js';
 import { applyTheme, applyDeSize } from './theme.js';
 import { loadSettings } from './storage.js';
@@ -14,6 +16,7 @@ const backLink = document.getElementById('bar-back');
 const barTitle = document.getElementById('bar-title');
 const settingsLink = document.getElementById('bar-settings');
 const wordsLink = document.getElementById('bar-words');
+const verbsLink = document.getElementById('bar-verbs');
 const barActions = document.getElementById('bar-actions');
 
 let cleanup = null;
@@ -22,13 +25,14 @@ let currentHash = null;
 let previousHash = '#/';
 
 const ctx = {
-  setBar(title, backHref, { settings = false, words = false } = {}) {
+  setBar(title, backHref, { settings = false, words = false, verbs = false } = {}) {
     barTitle.textContent = title;
     document.title = backHref ? `${title} · German Reader` : 'German Reader';
     backLink.hidden = !backHref;
     if (backHref) backLink.href = backHref;
     settingsLink.hidden = !settings;
     wordsLink.hidden = !words;
+    verbsLink.hidden = !verbs;
     barActions.replaceChildren();
   },
   // 在標題列右側放畫面專用的按鈕（換畫面時會清掉）
@@ -51,7 +55,8 @@ const ctx = {
 };
 
 // 路由：#/ 文章列表、#/new 新增文章、#/read/<id> 閱讀、#/translate/<id> 取得翻譯、#/settings 設定、
-// #/pair/<配對碼> 掃 QR code 設定同步、#/words 單字本、#/review/flash 閃卡、#/review/cloze 例句填空
+// #/pair/<配對碼> 掃 QR code 設定同步、#/words 單字本、#/review/flash 閃卡、#/review/cloze 例句填空、
+// #/verbs 動詞、#/verbs/new 新增動詞、#/verbs/more 增加例句、#/verbs/practice/<key> 單一動詞練習、#/verbs/mix 總練習
 function route() {
   const hash = location.hash || '#/';
   if (currentHash && currentHash !== hash && !currentHash.startsWith('#/settings')) previousHash = currentHash;
@@ -71,6 +76,11 @@ function route() {
   else if (parts[0] === 'words') cleanup = renderWords(view, ctx);
   else if (parts[0] === 'review' && parts[1] === 'flash') cleanup = renderFlashcards(view, ctx);
   else if (parts[0] === 'review' && parts[1] === 'cloze') cleanup = renderCloze(view, ctx);
+  else if (parts[0] === 'verbs' && parts[1] === 'new') cleanup = renderNewVerbs(view, ctx, 'new');
+  else if (parts[0] === 'verbs' && parts[1] === 'more') cleanup = renderNewVerbs(view, ctx, 'more');
+  else if (parts[0] === 'verbs' && parts[1] === 'mix') cleanup = renderVerbMix(view, ctx);
+  else if (parts[0] === 'verbs' && parts[1] === 'practice' && parts[2]) cleanup = renderVerbPractice(view, decodeURIComponent(parts[2]), ctx);
+  else if (parts[0] === 'verbs') cleanup = renderVerbs(view, ctx);
   else cleanup = renderLibrary(view, ctx);
 }
 

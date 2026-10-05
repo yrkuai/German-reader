@@ -159,3 +159,40 @@ test('同一個字兩邊都練過：不熟看較新的練習結果，出處取�
   assert.equal(g.weak, false);
   assert.equal(g.sources.length, 2);
 });
+
+// ---------- 動詞（資料格式 v3） ----------
+
+function verb(key, { updatedAt = NOW - DAY, sentences = [], weak = {} } = {}) {
+  return {
+    key, v: key, zh: '', type: '', tip: '', prefix: null, tense: 'present',
+    forms: { ich: 'a', du: 'b', er: 'c', wir: 'd', ihr: 'e', sie: 'f' },
+    sentences, weak, createdAt: NOW - 5 * DAY, updatedAt,
+  };
+}
+const EMPTY = { articles: [], deleted: {}, vocab: {}, vocabDeleted: {} };
+
+test('v2 的遠端資料（沒有動詞）：保留本機動詞並上傳', () => {
+  const local = { ...EMPTY, verbs: { fahren: verb('fahren') }, verbsDeleted: {} };
+  const { data, changedLocal, changedRemote } = mergeData(local, { v: 2, ...EMPTY }, NOW);
+  assert.deepEqual(Object.keys(data.verbs), ['fahren']);
+  assert.equal(changedLocal, false);
+  assert.equal(changedRemote, true);
+});
+
+test('動詞：兩邊各自增加例句，合併成聯集；相同時不需要寫回', () => {
+  const s1 = { p: 'ich', de: 'Ich fahre.', zh: null };
+  const s2 = { p: 'du', de: 'Du fährst.', zh: null };
+  const local = { ...EMPTY, verbs: { fahren: verb('fahren', { sentences: [s1] }) }, verbsDeleted: {} };
+  const remote = { ...EMPTY, verbs: { fahren: verb('fahren', { sentences: [s2, s1] }) }, verbsDeleted: {} };
+  const { data } = mergeData(local, remote, NOW);
+  assert.equal(data.verbs.fahren.sentences.length, 2);
+  const again = mergeData(data, structuredClone(data), NOW);
+  assert.equal(again.changedLocal, false);
+  assert.equal(again.changedRemote, false);
+});
+
+test('動詞：一邊刪除，另一邊也刪除', () => {
+  const local = { ...EMPTY, verbs: {}, verbsDeleted: { fahren: NOW - 1000 } };
+  const remote = { ...EMPTY, verbs: { fahren: verb('fahren') }, verbsDeleted: {} };
+  assert.deepEqual(mergeData(local, remote, NOW).data.verbs, {});
+});

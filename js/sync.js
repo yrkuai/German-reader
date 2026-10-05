@@ -2,13 +2,16 @@
 // 沒有設定同步（gr:sync 沒有 token）時什麼都不做，也不會發出任何網路請求。
 
 import {
-  listArticles, getDeleted, loadVocab, getVocabDeleted, replaceAll, onArticlesChanged, loadSync, saveSync,
+  listArticles, getDeleted, loadVocab, getVocabDeleted, loadVerbs, getVerbsDeleted, replaceAll, onArticlesChanged,
+  loadSync, saveSync,
 } from './storage.js';
 import { mergeEntries, normalizeEntry } from './vocab.js';
+import { mergeVerbs, normalizeVerb } from './verbs.js';
 
 const API = 'https://api.github.com';
 export const GIST_FILE = 'german-reader-sync.json';
-const DATA_VERSION = 2; // v2 加入單字本（vocab、vocabDeleted）；讀到 v1 時單字本當作空的
+// v2 加入單字本（vocab、vocabDeleted），v3 加入動詞練習（verbs、verbsDeleted）；讀到舊版時缺的部分當作空的
+const DATA_VERSION = 3;
 const DELETED_KEEP_MS = 90 * 24 * 60 * 60 * 1000;
 const CONTENT_DELAY_MS = 3000;    // 新增、翻譯、刪除後幾秒同步
 const PROGRESS_DELAY_MS = 15000;  // 只有閱讀進度變動時，等久一點，播放時不用每句都上傳
@@ -28,15 +31,24 @@ function normalize(data) {
   const deleted = isMap(data?.deleted) ? data.deleted : {};
   const vocab = isMap(data?.vocab) ? data.vocab : {};
   const vocabDeleted = isMap(data?.vocabDeleted) ? data.vocabDeleted : {};
-  return { articles, deleted, vocab, vocabDeleted };
+  const verbs = isMap(data?.verbs) ? data.verbs : {};
+  const verbsDeleted = isMap(data?.verbsDeleted) ? data.verbsDeleted : {};
+  return { articles, deleted, vocab, vocabDeleted, verbs, verbsDeleted };
 }
 
 const sortKeys = (obj) => Object.fromEntries(Object.entries(obj).sort(([a], [b]) => (a < b ? -1 : 1)));
 
 // 排好順序再轉成字串，用來判斷兩份資料是否相同
-function canonical({ articles, deleted, vocab, vocabDeleted }) {
+function canonical({ articles, deleted, vocab, vocabDeleted, verbs, verbsDeleted }) {
   const sorted = [...articles].sort((a, b) => (a.createdAt - b.createdAt) || (a.id < b.id ? -1 : 1));
-  return JSON.stringify({ articles: sorted, deleted: sortKeys(deleted), vocab: sortKeys(vocab), vocabDeleted: sortKeys(vocabDeleted) });
+  return JSON.stringify({
+    articles: sorted,
+    deleted: sortKeys(deleted),
+    vocab: sortKeys(vocab),
+    vocabDeleted: sortKeys(vocabDeleted),
+    verbs: sortKeys(verbs),
+    verbsDeleted: sortKeys(verbsDeleted),
+  });
 }
 
 // 兩邊的刪除紀錄聯集，同一個 key 取較新的時間，超過 90 天的清掉
@@ -48,17 +60,17 @@ function mergeTombstones(a, b, cutoff) {
   return result;
 }
 
-// 單字本以 key 為單位合併；刪除紀錄的時間 ≥ 單字的 updatedAt 時，那個字就刪除
-function mergeVocab(local, remote, cutoff) {
-  const vocabDeleted = mergeTombstones(remote.vocabDeleted, local.vocabDeleted, cutoff);
-  const vocab = {};
-  for (const key of new Set([...Object.keys(remote.vocab), ...Object.keys(local.vocab)])) {
-    const entry = mergeEntries(local.vocab[key], remote.vocab[key]);
-    if (vocabDeleted[key] >= (entry.updatedAt || 0)) continue;
-    delete vocabDeleted[key];
-    vocab[key] = entry;
+// 單字本、動詞都以 key 為單位合併；刪除紀錄的時間 ≥ 資料的 updatedAt 時，那一筆就刪除
+function mergeKeyed(localMap, remoteMap, localDeleted, remoteDeleted, mergeOne, cutoff) {
+  const deleted = mergeTombstones(remoteDeleted, localDeleted, cutoff);
+  const map = {};
+  for (const key of new Set([...Object.keys(remoteMap), ...Object.keys(localMap)])) {
+    const item = mergeOne(localMap[key], remoteMap[key]);
+    if (deleted[key] >= (item.updatedAt || 0)) continue;
+    delete deleted[key];
+    map[key] = item;
   }
-  return { vocab, vocabDeleted };
+  return [map, deleted];
 }
 
 // 以文章 id 為單位合併兩邊的資料：
@@ -92,10 +104,13 @@ export function mergeData(localData, remoteData, now = Date.now()) {
     articles.push(article);
   }
 
-  const data = { articles, deleted, ...mergeVocab(local, remote, cutoff) };
+  const [vocab, vocabDeleted] = mergeKeyed(local.vocab, remote.vocab, local.vocabDeleted, remote.vocabDeleted, mergeEntries, cutoff);
+  const [verbs, verbsDeleted] = mergeKeyed(local.verbs, remote.verbs, local.verbsDeleted, remote.verbsDeleted, mergeVerbs, cutoff);
+  const data = { articles, deleted, vocab, vocabDeleted, verbs, verbsDeleted };
   const result = canonical(data);
-  // 比較時把單字整理成相同的格式，只是順序不同不算變動
-  const tidy = (d) => ({ ...d, vocab: Object.fromEntries(Object.entries(d.vocab).map(([k, e]) => [k, normalizeEntry(e)])) });
+  // 比較時把單字、動詞整理成相同的格式，只是順序不同不算變動
+  const tidyMap = (map, fn) => Object.fromEntries(Object.entries(map).map(([k, e]) => [k, fn(e)]));
+  const tidy = (d) => ({ ...d, vocab: tidyMap(d.vocab, normalizeEntry), verbs: tidyMap(d.verbs, normalizeVerb) });
   return {
     data,
     changedLocal: result !== canonical(tidy(local)),
@@ -169,7 +184,13 @@ async function api(token, path, { method = 'GET', body, keepalive = false } = {}
 
 function toContent(data) {
   return JSON.stringify({
-    v: DATA_VERSION, articles: data.articles, deleted: data.deleted, vocab: data.vocab, vocabDeleted: data.vocabDeleted,
+    v: DATA_VERSION,
+    articles: data.articles,
+    deleted: data.deleted,
+    vocab: data.vocab,
+    vocabDeleted: data.vocabDeleted,
+    verbs: data.verbs,
+    verbsDeleted: data.verbsDeleted,
   });
 }
 
@@ -219,7 +240,14 @@ async function push({ token, gistId }, data, keepalive) {
 
 // ---------- 同步流程 ----------
 
-const localData = () => ({ articles: listArticles(), deleted: getDeleted(), vocab: loadVocab(), vocabDeleted: getVocabDeleted() });
+const localData = () => ({
+  articles: listArticles(),
+  deleted: getDeleted(),
+  vocab: loadVocab(),
+  vocabDeleted: getVocabDeleted(),
+  verbs: loadVerbs(),
+  verbsDeleted: getVerbsDeleted(),
+});
 
 // status：{ state: 'off' | 'idle' | 'syncing' | 'error', error, lastSyncAt }
 let status = { state: loadSync() ? 'idle' : 'off', error: null };
@@ -261,7 +289,7 @@ export function syncNow({ keepalive = false } = {}) {
       // 拉完才讀本機，合併和寫回之間沒有 await，不會蓋掉剛好在下載時的修改
       const { data, changedLocal, changedRemote } = mergeData(localData(), remote);
       if (changedLocal) {
-        replaceAll(data.articles, data.deleted, data.vocab, data.vocabDeleted);
+        replaceAll(data);
         onLocalChanged();
       }
       if (changedRemote) await push(sync, data, keepalive);

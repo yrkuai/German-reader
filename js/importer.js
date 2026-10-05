@@ -17,7 +17,8 @@ function tryParse(text) {
   }
 }
 
-function extractArray(raw) {
+// 從 AI 的回覆裡取出 JSON 陣列（動詞匯入也共用）
+export function extractArray(raw) {
   const text = String(raw || '').replace(/```(?:json)?/gi, '').trim();
   if (!text) throw new ImportError('沒有貼上任何內容。');
 
