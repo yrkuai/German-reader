@@ -1,12 +1,13 @@
 import { h } from './dom.js';
 import { icon } from './icons.js';
 import { loadSettings, saveSettings, loadVocab, sentenceLookup, setWeak } from '../storage.js';
-import { describe, pickSession, highlightTokens, pluralNote, makeCloze, checkAnswer } from '../vocab.js';
+import { describe, pickSession, highlightTokens, pluralNote, makeCloze, checkAnswer, createRound } from '../vocab.js';
 import { speakOnce, cancelSpeech } from '../speech.js';
 
-const SESSION_SIZE = 20;
+// 一輪 10 個字；答錯或「忘了」的放回這一輪最後面，全部答對才結束
+const SESSION_SIZE = 10;
 
-// 閃卡：每輪從選定範圍隨機抽 20 個。點卡片翻面，再按「忘了」或「記得」
+// 閃卡：每輪從選定範圍隨機抽 10 個。點卡片翻面，再按「忘了」或「記得」
 export function renderFlashcards(view, ctx) {
   ctx.setBar('閃卡', '#/words');
   const settings = loadSettings();
@@ -18,11 +19,8 @@ export function renderFlashcards(view, ctx) {
     return;
   }
   const lookup = sentenceLookup();
-  const cards = pickSession(pool, SESSION_SIZE).map((entry) => ({ entry, d: describe(entry, lookup) }));
-
-  let i = 0;
+  const round = createRound(pickSession(pool, SESSION_SIZE).map((entry) => ({ entry, d: describe(entry, lookup) })));
   let flipped = false;
-  let remembered = 0;
 
   // ---------- 方向：德→中／中→德（沒有翻譯的字一律德→中） ----------
   const dirButtons = [['de', '德 → 中'], ['zh', '中 → 德']].map(([value, label]) =>
@@ -59,9 +57,9 @@ export function renderFlashcards(view, ctx) {
   const dirOf = (c) => (settings.flashDir === 'zh' && c.d.meaning ? 'zh' : 'de');
 
   function draw() {
-    const c = cards[i];
+    const c = round.current;
     const dir = dirOf(c);
-    progress.textContent = `${i + 1} / ${cards.length}`;
+    progress.textContent = `剩 ${round.remaining} 個`;
     answers.hidden = !flipped;
     card.classList.toggle('is-flipped', flipped);
     card.setAttribute('aria-label', flipped ? '答案' : '點一下看答案');
@@ -72,7 +70,6 @@ export function renderFlashcards(view, ctx) {
           ? h('span', { class: 'flash-word', lang: 'de' }, c.d.display)
           : h('span', { class: 'flash-word flash-zh' }, c.d.meaning),
         settings.flashDir === 'zh' && dir === 'de' ? h('span', { class: 'hint' }, '這個字還沒有翻譯') : null,
-        h('span', { class: 'hint flash-tap' }, '點一下看答案'),
       );
       if (dir === 'de') speak(c.d.display);
       return;
@@ -93,7 +90,7 @@ export function renderFlashcards(view, ctx) {
   }
 
   function flip() {
-    const c = cards[i];
+    const c = round.current;
     flipped = true;
     draw();
     // 中→德：翻面時唸德文；沒有翻譯：唸整句，從句子裡理解
@@ -103,16 +100,12 @@ export function renderFlashcards(view, ctx) {
   }
 
   function answer(ok) {
-    setWeak(cards[i].entry.key, !ok);
-    if (ok) remembered++;
-    i++;
+    const { entry } = round.current;
+    // 只用第一次的作答標記不熟；之後重問才記得的，還是算不熟
+    if (round.answer(ok)) setWeak(entry.key, !ok);
     flipped = false;
-    if (i < cards.length) draw();
-    else finish();
-  }
-
-  function finish() {
-    showSummary(body, ctx, `完成 ${cards.length} 個，記得 ${remembered} 個`, remembered < cards.length, '#/review/flash');
+    if (!round.done) draw();
+    else showSummary(body, ctx, round, '#/review/flash');
   }
 
   draw();
@@ -130,12 +123,19 @@ function practicePool(settings) {
   return settings.vocabScope === 'weak' ? all.filter((e) => e.weak) : all;
 }
 
-// 一輪結束的結果畫面
-function showSummary(body, ctx, text, hasWeak, againHash) {
+// 一輪結束的結果畫面：第一次就答對幾個，第一次答錯的字列出來
+function showSummary(body, ctx, round, againHash) {
   cancelSpeech();
+  const missed = round.firstTryWrong();
   body.replaceChildren(h('div', { class: 'empty flash-done' },
-    h('p', {}, text),
-    hasWeak ? h('p', { class: 'muted' }, '答錯或忘了的字已標成「不熟」，可以在單字本選「不熟」再練一次。') : null,
+    h('p', {}, `${round.total} 個全部完成`),
+    h('p', { class: 'muted' }, `第一次就答對 ${round.firstTryCorrect()} 個`),
+    missed.length
+      ? h('div', { class: 'flash-missed' },
+        h('p', { class: 'muted' }, '第一次答錯（已標成「不熟」）：'),
+        h('ul', {}, missed.map((m) => h('li', { lang: 'de' }, m.d.display))),
+      )
+      : null,
     h('div', { class: 'actions flash-done-actions' },
       h('a', { class: 'btn', href: '#/words' }, '回到單字本'),
       h('button', { class: 'btn btn-primary', type: 'button', onclick: () => ctx.navigate(againHash) }, '再一輪'),
@@ -151,39 +151,56 @@ export function renderCloze(view, ctx) {
 
   const pool = practicePool(settings);
   const lookup = sentenceLookup();
-  // 每個字隨機挑一個出處；文章還在就用最新的句子和翻譯，刪了就用標記時存的
-  const questions = pickSession(pool, SESSION_SIZE).flatMap((entry) => {
-    for (const src of pickSession(entry.sources || [], Infinity)) {
+  // 每個字準備它所有可用的例句（順序隨機）；答錯再問時換下一句，避免只背下那一句。
+  // 文章還在就用最新的句子和翻譯，刪了就用標記時存的
+  const items = pickSession(pool, SESSION_SIZE).flatMap((entry) => {
+    const variants = pickSession(entry.sources || [], Infinity).flatMap((src) => {
       const sentence = lookup(src.articleId, src.index);
       const de = sentence?.de || src.de;
       const cloze = de ? makeCloze(de, src.form) : null;
-      if (cloze) return [{ entry, de, zh: sentence?.zh || src.zh || null, cloze }];
-    }
-    return [];
+      return cloze ? [{ de, zh: sentence?.zh || src.zh || null, cloze }] : [];
+    });
+    return variants.length ? [{ entry, d: describe(entry, lookup), variants, tries: 0 }] : [];
   });
-  if (!questions.length) {
+  if (!items.length) {
     ctx.navigate('#/words');
     return;
   }
+  const round = createRound(items);
+  // 畫面上這一題（送出後 round.current 已經換到下一個，按鈕要用這裡記下的題目）
+  let item = null;
+  let q = null;
 
-  let i = 0;
   let answered = false;
-  let correct = 0;
 
   const progress = h('span', { class: 'hint flash-progress' });
   const sentenceEl = h('p', { class: 'cloze-sentence', lang: 'de' });
   const zhEl = h('p', { class: 'cloze-zh' });
+  // 中文翻譯：右上角的翻譯按鈕開關，每次進來預設關閉（和閱讀頁同一顆按鈕）
+  let showZh = false;
+  const zhToggle = h('button', {
+    class: 'zh-toggle', type: 'button', 'aria-label': '顯示中文翻譯', 'aria-pressed': 'false',
+    onclick: () => {
+      showZh = !showZh;
+      zhToggle.setAttribute('aria-pressed', String(showZh));
+      zhToggle.title = showZh ? '隱藏中文翻譯' : '顯示中文翻譯';
+      applyZh();
+    },
+  }, icon('translate'));
+  zhToggle.title = '顯示中文翻譯';
+  ctx.addBarAction(zhToggle);
+  const applyZh = () => { zhEl.hidden = !showZh || !q.zh; };
   const hintEl = h('p', { class: 'cloze-hint', 'aria-live': 'polite' });
   const hintBtn = h('button', {
     class: 'btn', type: 'button',
     onclick: () => {
-      hintEl.textContent = questions[i].cloze.hint;
+      hintEl.textContent = q.cloze.hint;
       hintBtn.disabled = true;
       input.focus({ preventScroll: true });
     },
   }, '提示');
   const playBtn = h('button', {
-    class: 'btn btn-icon-text', type: 'button', onclick: () => speak(questions[i].de),
+    class: 'btn btn-icon-text', type: 'button', onclick: () => speak(q.de),
   }, icon('speaker'), '聽整句');
   const input = h('input', {
     class: 'input cloze-input', type: 'text', lang: 'de', autocomplete: 'off', autocapitalize: 'off', spellcheck: false,
@@ -211,12 +228,14 @@ export function renderCloze(view, ctx) {
   const blank = (content, state) => h('span', { class: state ? `cloze-blank is-${state}` : 'cloze-blank' }, content);
 
   function draw() {
-    const q = questions[i];
+    item = round.current;
+    q = item.variants[item.tries % item.variants.length];
     answered = false;
-    progress.textContent = `${i + 1} / ${questions.length}`;
+    progress.textContent = `剩 ${round.remaining} 個`;
     sentenceEl.replaceChildren(q.cloze.before, blank('\u00a0'.repeat(Math.max(4, q.cloze.answer.length))), q.cloze.after);
     zhEl.textContent = q.zh || '';
-    zhEl.hidden = !q.zh;
+    zhToggle.disabled = !q.zh; // 這句沒有翻譯時按鈕不能按
+    applyZh();
     hintEl.textContent = '';
     hintBtn.disabled = false;
     input.value = '';
@@ -229,12 +248,12 @@ export function renderCloze(view, ctx) {
 
   function submit() {
     if (answered || !input.value.trim()) return;
-    const q = questions[i];
     const result = checkAnswer(input.value, q.cloze);
     const ok = result === 'ok';
     answered = true;
-    if (ok) correct++;
-    setWeak(q.entry.key, !ok);
+    // 只用第一次的作答標記不熟；答錯的放回這一輪最後面，下次換一句例句
+    if (round.answer(ok)) setWeak(item.entry.key, !ok);
+    if (!ok) item.tries++;
     sentenceEl.replaceChildren(q.cloze.before, blank(q.cloze.answer, ok ? 'ok' : 'wrong'), q.cloze.after);
     feedback.replaceChildren(ok
       ? h('span', { class: 'ok' }, '✓ 答對了')
@@ -249,9 +268,8 @@ export function renderCloze(view, ctx) {
   }
 
   function next() {
-    i++;
-    if (i < questions.length) draw();
-    else showSummary(body, ctx, `完成 ${questions.length} 題，答對 ${correct} 題`, correct < questions.length, '#/review/cloze');
+    if (!round.done) draw();
+    else showSummary(body, ctx, round, '#/review/cloze');
   }
 
   draw();

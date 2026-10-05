@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  vocabKey, displayOf, buildMarkIndex, findMarked, mergeEntries, refreshVocab, describe, pickSession, highlightTokens, pluralNote, makeCloze, checkAnswer,
+  vocabKey, displayOf, buildMarkIndex, findMarked, mergeEntries, refreshVocab, describe, pickSession, highlightTokens, pluralNote, makeCloze, checkAnswer, createRound,
 } from '../js/vocab.js';
 import { lookupWord } from '../js/importer.js';
 
@@ -142,4 +142,22 @@ test('比對答案：變音、ß、標點、大小寫', () => {
   // 名詞在句中要大寫；句首不算
   assert.equal(checkAnswer('haus', { answer: 'Haus', sentenceStart: false }), 'case');
   assert.equal(checkAnswer('das', { answer: 'Das', sentenceStart: true }), 'ok');
+});
+
+test('一輪練習：答錯放回最後，全部答對才結束，第一次的結果決定不熟', () => {
+  const round = createRound(['A', 'B', 'C']);
+  assert.equal(round.remaining, 3);
+  assert.equal(round.current, 'A');
+  assert.equal(round.answer(true), true);   // A 第一次就對
+  assert.equal(round.answer(false), true);  // B 第一次錯 → 放到最後
+  assert.equal(round.current, 'C');
+  assert.equal(round.answer(true), true);   // C
+  assert.equal(round.current, 'B');         // 回頭再問 B
+  assert.equal(round.answer(false), false); // 還是錯，不是第一次
+  assert.equal(round.current, 'B');
+  assert.equal(round.answer(true), false);
+  assert.equal(round.done, true);
+  assert.equal(round.current, null);
+  assert.equal(round.firstTryCorrect(), 2);
+  assert.deepEqual(round.firstTryWrong(), ['B']);
 });

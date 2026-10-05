@@ -177,3 +177,28 @@ export function checkAnswer(input, { answer, sentenceStart }) {
   const caseMatters = !sentenceStart && answer[0] !== answer[0].toLowerCase();
   return caseMatters ? 'case' : 'ok';
 }
+
+// ---------- 一輪練習 ----------
+
+// 答錯的放回這一輪的最後面，每個都答對過一次才結束。
+// 「第一次」的作答結果用來標記不熟（之後才答對的，還是算不熟）
+export function createRound(items) {
+  const queue = [...items];
+  const firstTry = new Map();
+  return {
+    get current() { return queue[0] ?? null; },
+    get remaining() { return queue.length; },
+    get done() { return queue.length === 0; },
+    total: items.length,
+    // 回傳這次是不是這個項目的第一次作答
+    answer(ok) {
+      const item = queue.shift();
+      const first = !firstTry.has(item);
+      if (first) firstTry.set(item, ok);
+      if (!ok) queue.push(item);
+      return first;
+    },
+    firstTryCorrect: () => items.filter((it) => firstTry.get(it) === true).length,
+    firstTryWrong: () => items.filter((it) => firstTry.get(it) === false),
+  };
+}
