@@ -82,8 +82,8 @@ export function syncSection() {
       }
     });
 
-    el.replaceChildren(
-      h('h2', { class: 'card-title' }, '同步'),
+    // 未設定時預設收合，只顯示標題；點標題展開（不記住展開狀態）
+    const body = h('div', { class: 'stack collapse-body', id: 'sync-setup', hidden: true },
       h('p', { class: 'hint' }, '讓電腦和手機的文章自動同步，資料存在你自己 GitHub 帳號的 Secret Gist。不設定也可以照常使用，文章只存在這台裝置。'),
       h('ul', { class: 'tips' },
         h('li', {}, h('b', {}, '第一台裝置：'), '點下方「建立 GitHub 金鑰」，在 GitHub 按「Generate token」，把金鑰複製回來貼上。'),
@@ -96,6 +96,18 @@ export function syncSection() {
       h('div', { class: 'actions' }, connectBtn),
       msg,
     );
+    const toggle = h('button', {
+      class: 'collapse-head', type: 'button', 'aria-expanded': 'false', 'aria-controls': 'sync-setup',
+      onclick: () => {
+        body.hidden = !body.hidden;
+        toggle.setAttribute('aria-expanded', String(!body.hidden));
+      },
+    },
+      h('h2', { class: 'card-title' }, '同步'),
+      h('span', { class: 'hint' }, '未設定'),
+      icon('chevron'),
+    );
+    el.replaceChildren(toggle, body);
   }
 
   // ---------- 已設定 ----------

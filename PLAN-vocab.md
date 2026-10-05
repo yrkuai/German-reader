@@ -132,7 +132,7 @@ text-underline-offset: 3px;
 
 ### 入口
 
-文章列表頁的標題列，在設定圖示左邊加一個單字本圖示（書籤），連到 `#/words`。
+文章列表頁的標題列，在設定圖示左邊加一個單字本圖示（Lucide `book-marked`，書本加書籤），連到 `#/words`。
 
 ```
 German Reader                 [🔖] [⚙]
@@ -248,7 +248,7 @@ German Reader                 [🔖] [⚙]
 | `js/ui/reader.js` | 呼叫 `openWordSheet` 時傳入標記狀態；`.w` 依 `isMarked` 加底線，標記後即時更新 |
 | `js/ui/words.js`（新增） | 單字本頁 |
 | `js/ui/review.js`（新增） | 閃卡、例句填空、結果頁 |
-| `js/ui/icons.js` | `star`、`star-filled`、`bookmark` |
+| `js/ui/icons.js` | `star`、`star-filled`（單字本圖示 `book-marked` 直接寫在 `index.html`） |
 | `index.html`、`js/app.js` | 標題列的單字本連結（和設定一樣由 `ctx.setBar` 控制顯示）；新路由 `#/words`、`#/review/flash`、`#/review/cloze` |
 | `js/ui/translate.js` | 匯入翻譯後呼叫 `refreshVocab()` |
 | `js/sync.js` | 資料格式 v2，合併時加入 vocab |

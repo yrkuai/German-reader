@@ -614,6 +614,27 @@ select.input { appearance: auto; }
 .settings-section:last-child { border-bottom: 0; }
 .settings-section .card-title { font-weight: 600; }
 .settings-section .speed { font-size: 15px; }
+/* 可收合的區塊標題（未設定的同步）：整行可點，右邊箭頭展開時轉向上 */
+.collapse-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  margin: -6px 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.collapse-head .card-title { flex: 1; }
+.collapse-head .icon { color: var(--ink-muted); transition: transform 0.2s; }
+.collapse-head[aria-expanded="true"] .icon { transform: rotate(180deg); }
+.collapse-body[hidden] { display: none; }
 .row { display: flex; gap: 8px; align-items: center; }
 .row > .input { flex: 1; min-width: 0; }
 .row-between { justify-content: space-between; }
