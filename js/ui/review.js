@@ -67,7 +67,7 @@ export function renderFlashcards(view, ctx) {
     card.setAttribute('aria-label', flipped ? '答案' : '點一下看答案');
 
     if (!flipped) {
-      card.replaceChildren(
+      fill(card,
         dir === 'de'
           ? h('span', { class: 'flash-word', lang: 'de' }, c.d.display)
           : h('span', { class: 'flash-word flash-zh' }, c.d.meaning),
@@ -79,7 +79,7 @@ export function renderFlashcards(view, ctx) {
     }
 
     const ex = c.d.example;
-    card.replaceChildren(
+    fill(card,
       h('span', { class: 'flash-word', lang: 'de' }, c.d.display),
       pluralNote(c.d.info) ? h('span', { class: 'flash-grammar' }, pluralNote(c.d.info)) : null,
       h('span', { class: c.d.meaning ? 'flash-meaning' : 'flash-meaning is-empty' }, c.d.meaning || '尚無翻譯'),
@@ -117,6 +117,11 @@ export function renderFlashcards(view, ctx) {
 
   draw();
   return () => cancelSpeech();
+}
+
+// 換掉 el 的內容，略過 null（replaceChildren 會把 null 變成文字「null」）
+function fill(el, ...children) {
+  el.replaceChildren(...children.filter((c) => c != null && c !== false));
 }
 
 // 練習範圍：全部或只練不熟的

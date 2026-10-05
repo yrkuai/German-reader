@@ -755,6 +755,7 @@ select.input { appearance: auto; }
   line-height: 1.3;
   overflow-wrap: anywhere;
 }
+.word-grammar { color: var(--ink-muted); font-size: 13px; line-height: 1.4; }
 .word-zh { color: var(--ink-muted); font-size: 14px; line-height: 1.4; }
 .word-zh.is-empty { font-style: italic; }
 /* 不熟的字：名稱前面一個小點 */

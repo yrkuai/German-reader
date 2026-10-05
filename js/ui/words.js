@@ -123,6 +123,8 @@ export function renderWords(view, ctx) {
       speakBtn,
       h('span', { class: 'word-text' },
         h('span', { class: 'word-de', lang: 'de' }, entry.weak ? h('span', { class: 'word-weak', 'aria-label': '不熟' }) : null, d.display),
+        // 原形（名詞帶冠詞）在上一行，這裡補名詞的複數
+        pluralNote(d.info) ? h('span', { class: 'word-grammar' }, pluralNote(d.info)) : null,
         h('span', { class: d.meaning ? 'word-zh' : 'word-zh is-empty' }, d.meaning || '尚無翻譯'),
       ),
     );
