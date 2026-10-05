@@ -138,8 +138,8 @@ function practicePool(settings) {
 }
 
 // 一輪結束的結果畫面：第一次就答對幾個，第一次答錯的列出來（動詞練習也共用）
-// labelOf：答錯清單裡每一項顯示的文字
-export function showSummary(body, ctx, round, againHash, labelOf = (m) => m.d.display) {
+// labelOf：答錯清單裡每一項顯示的文字；back：「回到…」按鈕的連結與文字
+export function showSummary(body, ctx, round, againHash, labelOf = (m) => m.d.display, back = { href: '#/words', label: '回到單字本' }) {
   cancelSpeech();
   const missed = round.firstTryWrong();
   body.replaceChildren(h('div', { class: 'empty flash-done' },
@@ -152,7 +152,7 @@ export function showSummary(body, ctx, round, againHash, labelOf = (m) => m.d.di
       )
       : null,
     h('div', { class: 'actions flash-done-actions' },
-      h('a', { class: 'btn', href: '#/words' }, '回到單字本'),
+      h('a', { class: 'btn', href: back.href }, back.label),
       h('button', { class: 'btn btn-primary', type: 'button', onclick: () => ctx.navigate(againHash) }, '再一輪'),
     ),
   ));

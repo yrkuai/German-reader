@@ -177,7 +177,11 @@ function runPractice(view, ctx, { title, items, againHash }) {
 
   function next() {
     if (!round.done) draw();
-    else showSummary(body, ctx, round, againHash, (m) => `${m.verb.v} · ${PERSON_LABELS[m.p]} → ${formDisplay(m.verb, m.p)}`);
+    else {
+      showSummary(body, ctx, round, againHash,
+        (m) => `${m.verb.v} · ${PERSON_LABELS[m.p]} → ${formDisplay(m.verb, m.p)}`,
+        { href: '#/verbs', label: '回到動詞本' });
+    }
   }
 
   draw();
