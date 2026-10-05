@@ -22,6 +22,7 @@
   --canvas: #ffffff;
   --surface-1: #f4f4f4;
   --surface-2: #e9e9e9;
+  --current: #f4f4f4;      /* 閱讀畫面目前的句子 */
   --hairline: #e3e3e3;
   --hairline-soft: #efefef;
   --ink: #000000;
@@ -66,6 +67,7 @@
     --canvas: #090909;
     --surface-1: #141414;
     --surface-2: #1c1c1c;
+    --current: #262626;
     --hairline: #262626;
     --hairline-soft: #1a1a1a;
     --ink: #ffffff;
@@ -84,6 +86,7 @@
   --canvas: #090909;
   --surface-1: #141414;
   --surface-2: #1c1c1c;
+  --current: #262626;
   --hairline: #262626;
   --hairline-soft: #1a1a1a;
   --ink: #ffffff;
@@ -175,6 +178,7 @@ button.bar-back { border: 0; padding: 0; font: inherit; font-size: 1.15rem; curs
 .bar-back[hidden] + .bar-title { padding-left: 0; }
 
 .bar-actions { display: flex; align-items: center; }
+#bar-words:not([hidden]) + #bar-settings { margin-left: 4px; }
 .bar-actions:empty { display: none; }
 
 /* ---------- 版面 ---------- */
@@ -360,8 +364,8 @@ select.input { appearance: auto; }
 @media (hover: hover) {
   .sentence:hover { background: var(--surface-1); }
 }
-/* 目前的句子：淺灰底（播放中也一樣，不另外標示） */
-.sentence.is-current { background: var(--surface-1); }
+/* 目前的句子：淺灰底（播放中也一樣，不另外標示）；深色模式用比滑過時更亮的灰，才看得出來 */
+.sentence.is-current { background: var(--current); }
 
 .sentence-no {
   flex: none;
@@ -395,6 +399,13 @@ select.input { appearance: auto; }
   .sentence:hover .w:hover { background: var(--hairline); }
 }
 .w.is-active { background: var(--accent); color: #fff; }
+/* 單字本裡的字：淡淡的底線 */
+.w.is-marked {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
 
 .zh {
   margin: 4px 0 0;
@@ -709,6 +720,99 @@ select.input { appearance: auto; }
 .ok { font-weight: 600; }
 .warn { padding: 12px 16px; border-radius: var(--r-md); background: var(--canvas); font-size: 13px; }
 
+/* ---------- 單字本 ---------- */
+.words-head { margin-bottom: 12px; align-items: flex-start; }
+.words-head .row { align-self: stretch; }
+.words-start { flex: 1; }
+.word-item { flex-direction: row; align-items: center; gap: 12px; padding-top: 12px; padding-bottom: 12px; cursor: pointer; }
+.word-speak { width: 40px; height: 40px; }
+.word-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.word-de {
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.word-zh { color: var(--ink-muted); font-size: 14px; line-height: 1.4; }
+.word-zh.is-empty { font-style: italic; }
+/* 不熟的字：名稱前面一個小點 */
+.word-weak {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin: 0 6px 0 0;
+  border-radius: 50%;
+  background: var(--danger);
+  vertical-align: 0.2em;
+}
+
+/* ---------- 閃卡 ---------- */
+.flashcard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 320px;
+  padding: 28px 20px;
+  border: 0;
+  border-radius: var(--r-xl);
+  background: var(--current); /* 深色模式也看得出卡片 */
+  color: var(--ink);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.flashcard.is-flipped { cursor: default; }
+.flash-word {
+  max-width: 100%;
+  font-size: clamp(28px, 8vw, 40px);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  -webkit-hyphens: auto;
+  hyphens: auto;
+  overflow-wrap: anywhere;
+}
+.flash-zh { font-size: clamp(24px, 7vw, 32px); }
+.flash-tap { margin-top: 12px; }
+.flash-grammar { color: var(--ink-muted); font-size: 16px; font-weight: 500; }
+.flash-meaning { font-size: 20px; line-height: 1.5; }
+.flash-meaning.is-empty { color: var(--ink-muted); font-size: 15px; }
+.flash-example { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; padding-top: 14px; border-top: 1px solid color-mix(in srgb, var(--ink) 15%, transparent); align-self: stretch; }
+.flash-example-de { font-size: 16px; line-height: 1.6; }
+.flash-example-de b { font-weight: 600; }
+.flash-example-zh { color: var(--ink-muted); font-size: 14px; line-height: 1.5; }
+.flash-answers { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.flash-answers[hidden] { display: none; }
+.flash-progress { font-variant-numeric: tabular-nums; }
+.flash-done p:first-child { font-size: 22px; font-weight: 500; }
+.flash-done-actions { justify-content: center; margin-top: 12px; }
+
+/* ---------- 例句填空 ---------- */
+.cloze-card { padding: 22px 20px; border-radius: var(--r-xl); background: var(--current); gap: 8px; }
+.cloze-sentence { margin: 0; font-size: var(--de-size); line-height: 1.8; overflow-wrap: break-word; }
+.cloze-blank {
+  display: inline-block;
+  min-width: 3em;
+  padding: 0 1px;
+  border-bottom: 2px solid var(--ink-muted);
+  line-height: 1.3;
+  white-space: pre;
+}
+.cloze-blank.is-ok { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.cloze-blank.is-wrong { border-color: var(--danger); color: var(--danger); font-weight: 600; }
+.cloze-zh { margin: 0; color: var(--ink-muted); font-size: 14px; line-height: 1.5; }
+.cloze-zh[hidden] { display: none; }
+.cloze-hint { margin: 0; font-size: 17px; letter-spacing: 0.08em; font-variant-numeric: tabular-nums; }
+.cloze-hint:empty { display: none; }
+.cloze-input { font-size: 17px; }
+.cloze-feedback { margin: 0; min-height: 1.5em; }
+.cloze-feedback b { font-weight: 600; }
+
 /* ---------- 單字抽屜 ---------- */
 .sheet-backdrop {
   position: fixed;
@@ -733,14 +837,16 @@ select.input { appearance: auto; }
 }
 .sheet-backdrop.is-open .sheet { transform: translateY(0); }
 .sheet-handle { width: 36px; height: 4px; margin: 0 auto 16px; border-radius: 2px; background: var(--hairline); }
-.sheet-head { display: flex; align-items: center; gap: 8px; }
+.sheet-tools { display: flex; justify-content: flex-end; gap: 8px; }
+/* 單字自己佔一整行：手機約 26–27px、平板 32px；長單字照德文規則斷字 */
 .sheet-word {
-  flex: 1;
-  min-width: 0;
-  font-size: 32px;
+  margin: 8px 0 0;
+  font-size: clamp(24px, 7vw, 32px);
   font-weight: 500;
-  line-height: 1.13;
+  line-height: 1.15;
   letter-spacing: -0.03em;
+  -webkit-hyphens: auto;
+  hyphens: auto;
   overflow-wrap: anywhere;
 }
 .sheet-speak { background: var(--primary); color: var(--on-primary); }
@@ -759,6 +865,13 @@ select.input { appearance: auto; }
 .sheet-grammar { margin: 8px 0 0; color: var(--ink-muted); font-size: 16px; font-weight: 500; letter-spacing: -0.01em; }
 .sheet-meaning { margin: 14px 0 0; font-size: 18px; line-height: 1.5; }
 .sheet-meaning.is-empty { color: var(--ink-muted); font-size: 14px; }
+.sheet-star { display: grid; place-items: center; }
+.sheet-star .icon svg { width: 20px; height: 20px; }
+.sheet-example { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--hairline); }
+.sheet-example p { margin: 0; }
+.sheet-example-de { font-size: 16px; line-height: 1.6; }
+.sheet-example-de b { font-weight: 600; }
+.sheet-example-zh { margin-top: 4px !important; color: var(--ink-muted); font-size: 14px; line-height: 1.5; }
 
 /* ---------- 短暫提示 ---------- */
 .toast {

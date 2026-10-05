@@ -6,7 +6,7 @@ import { showToast } from './toast.js';
 import { splitSentences } from '../segmenter.js';
 
 export function renderLibrary(view, ctx) {
-  ctx.setBar('German Reader', null, { settings: true });
+  ctx.setBar('German Reader', null, { settings: true, words: true });
 
   const articles = listArticles().sort((a, b) => b.createdAt - a.createdAt);
 

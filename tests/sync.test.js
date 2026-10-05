@@ -113,3 +113,49 @@ test('看不懂的配對碼回傳 null', () => {
     assert.equal(decodePairCode(text), null, text);
   }
 });
+
+// ---------- 單字本（資料格式 v2） ----------
+
+function word(key, { updatedAt = NOW - DAY, weak = false, reviewedAt = 0, forms = [key], sources = [] } = {}) {
+  return { key, display: key, forms, sources, weak, reviewedAt, createdAt: NOW - 5 * DAY, updatedAt };
+}
+
+test('v1 的遠端資料（沒有單字本）：保留本機單字並上傳', () => {
+  const local = { articles: [], deleted: {}, vocab: { gehen: word('gehen') }, vocabDeleted: {} };
+  const remote = { v: 1, articles: [], deleted: {} };
+  const { data, changedLocal, changedRemote } = mergeData(local, remote, NOW);
+  assert.deepEqual(Object.keys(data.vocab), ['gehen']);
+  assert.equal(changedLocal, false);
+  assert.equal(changedRemote, true);
+});
+
+test('單字只有一邊有：兩邊都會有；兩邊相同時不需要寫回', () => {
+  const local = { articles: [], deleted: {}, vocab: { gehen: word('gehen') }, vocabDeleted: {} };
+  const remote = { articles: [], deleted: {}, vocab: { haus: word('haus') }, vocabDeleted: {} };
+  const { data } = mergeData(local, remote, NOW);
+  assert.deepEqual(Object.keys(data.vocab).sort(), ['gehen', 'haus']);
+  const same = mergeData(data, structuredClone(data), NOW);
+  assert.equal(same.changedLocal, false);
+  assert.equal(same.changedRemote, false);
+});
+
+test('一邊移除單字：另一邊也移除；之後重新標記則保留', () => {
+  const local = { articles: [], deleted: {}, vocab: {}, vocabDeleted: { gehen: NOW - 1000 } };
+  const remote = { articles: [], deleted: {}, vocab: { gehen: word('gehen', { updatedAt: NOW - DAY }) }, vocabDeleted: {} };
+  assert.deepEqual(mergeData(local, remote, NOW).data.vocab, {});
+
+  const remarked = { articles: [], deleted: {}, vocab: { gehen: word('gehen', { updatedAt: NOW }) }, vocabDeleted: {} };
+  const { data } = mergeData(remarked, { ...remote, vocabDeleted: { gehen: NOW - 1000 } }, NOW);
+  assert.deepEqual(Object.keys(data.vocab), ['gehen']);
+  assert.deepEqual(data.vocabDeleted, {});
+});
+
+test('同一個字兩邊都練過：不熟看較新的練習結果，出處取聯集', () => {
+  const s1 = { articleId: 'a', index: 0, form: 'ging' };
+  const s2 = { articleId: 'b', index: 3, form: 'geht' };
+  const local = { articles: [], deleted: {}, vocab: { gehen: word('gehen', { weak: true, reviewedAt: NOW - 100, sources: [s1] }) }, vocabDeleted: {} };
+  const remote = { articles: [], deleted: {}, vocab: { gehen: word('gehen', { weak: false, reviewedAt: NOW - 50, sources: [s2] }) }, vocabDeleted: {} };
+  const g = mergeData(local, remote, NOW).data.vocab.gehen;
+  assert.equal(g.weak, false);
+  assert.equal(g.sources.length, 2);
+});

@@ -2,7 +2,7 @@
 // 策略：網路優先（3 秒內沒回應就用快取），所以有網路時一定拿到最新版，
 // 沒網路時用上次存下來的檔案。新增或改名檔案時，記得更新 APP_FILES 和 CACHE。
 
-const CACHE = 'gr-v45';
+const CACHE = 'gr-v46';
 const NETWORK_TIMEOUT_MS = 3000;
 
 const APP_FILES = [
@@ -18,6 +18,7 @@ const APP_FILES = [
   './js/prompt.js',
   './js/importer.js',
   './js/sync.js',
+  './js/vocab.js',
   './js/vendor/qrcode.js',
   './js/ui/dom.js',
   './js/ui/icons.js',
@@ -28,6 +29,8 @@ const APP_FILES = [
   './js/ui/sync.js',
   './js/ui/toast.js',
   './js/ui/translate.js',
+  './js/ui/words.js',
+  './js/ui/review.js',
   './js/ui/wordSheet.js',
   './fonts/inter-latin-wght-normal.woff2',
   './icons/icon.svg',

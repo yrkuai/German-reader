@@ -1,6 +1,6 @@
 import { h } from './dom.js';
 import { icon } from './icons.js';
-import { getArticle, saveArticle } from '../storage.js';
+import { getArticle, saveArticle, refreshStoredVocab } from '../storage.js';
 import { makeBatches, buildPrompt } from '../prompt.js';
 import { parseResponse, mergeTranslations, untranslated, formatRanges, ImportError } from '../importer.js';
 
@@ -88,6 +88,7 @@ export function renderTranslate(view, id, ctx) {
       const { items, skipped } = parseResponse(responseInput.value, total);
       article = mergeTranslations(article, items);
       const saved = saveArticle(article);
+      refreshStoredVocab(); // 單字本裡這篇的單字有了原形，同一個字合併
       const missing = untranslated(article);
 
       // 全部成功：直接回到文章，在那裡顯示提示

@@ -1,6 +1,9 @@
 import { h } from './dom.js';
 import { icon } from './icons.js';
-import { getArticle, deleteArticle, setLastIndex, loadSettings, saveSettings } from '../storage.js';
+import {
+  getArticle, deleteArticle, setLastIndex, loadSettings, saveSettings, loadVocab, markWord, unmarkWord, refreshStoredVocab,
+} from '../storage.js';
+import { buildMarkIndex, findMarked, vocabKey, displayOf } from '../vocab.js';
 import { tokenize } from '../segmenter.js';
 import { createPlayer, RATES, formatRate, speechSupported, getGermanVoices, onVoicesChanged } from '../speech.js';
 import { untranslated, formatRanges, lookupWord, grammarLine } from '../importer.js';
@@ -27,6 +30,14 @@ export function renderReader(view, id, ctx) {
   let shownIndex = -1;
   let shownPlaying = false;
 
+  // 標記過的單字加底線（所有文章都會標出來）
+  let markIndex = buildMarkIndex(refreshStoredVocab());
+  const wordEls = [];
+  function updateMarks() {
+    markIndex = buildMarkIndex(loadVocab());
+    for (const w of wordEls) w.el.classList.toggle('is-marked', !!findMarked(markIndex, w.info, w.form));
+  }
+
   const cards = article.sentences.map((s, i) =>
     h('li', {
       class: 'sentence', 'data-index': i,
@@ -35,9 +46,16 @@ export function renderReader(view, id, ctx) {
       h('span', { class: 'sentence-no', 'aria-hidden': 'true' }, i + 1),
       h('div', { class: 'sentence-body' },
         h('p', { class: 'de', lang: 'de' },
-          tokenize(s.de).map((t) => (t.word
-            ? h('span', { class: 'w', onclick: (e) => { e.stopPropagation(); openWord(e.currentTarget, t.text, s); } }, t.text)
-            : t.text)),
+          tokenize(s.de).map((t) => {
+            if (!t.word) return t.text;
+            const info = lookupWord(s.words, t.text);
+            const el = h('span', {
+              class: findMarked(markIndex, info, t.text) ? 'w is-marked' : 'w',
+              onclick: (e) => { e.stopPropagation(); openWord(el, t.text, s, i); },
+            }, t.text);
+            wordEls.push({ el, info, form: t.text });
+            return el;
+          }),
         ),
         s.zh ? h('p', { class: 'zh' }, s.zh) : null,
       ),
@@ -112,7 +130,7 @@ export function renderReader(view, id, ctx) {
 
   // ---------- 點單字：中斷播放、唸單字、顯示意思；關閉後回到原本的播放 ----------
   let closeSheet = null;
-  function openWord(el, word, sentence) {
+  function openWord(el, word, sentence, index) {
     closeSheet?.();
     el.classList.add('is-active');
     player.speakWord(word);
@@ -122,6 +140,25 @@ export function renderReader(view, id, ctx) {
       grammar: grammarLine(info, word),
       meaning: info?.meaning,
       onSpeak: () => player.speakWord(word),
+      mark: {
+        marked: !!findMarked(markIndex, info, word),
+        // 回傳切換後是否已標記
+        onToggle: () => {
+          const key = findMarked(markIndex, info, word);
+          if (key) {
+            unmarkWord(key);
+          } else {
+            markWord({
+              key: vocabKey(info, word),
+              display: displayOf(info, word),
+              form: word,
+              source: { articleId: article.id, index, de: sentence.de, zh: sentence.zh || null, form: word },
+            });
+          }
+          updateMarks();
+          return !key;
+        },
+      },
       onClose: () => {
         el.classList.remove('is-active');
         closeSheet = null;
