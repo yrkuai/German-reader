@@ -170,6 +170,7 @@ function runPractice(view, ctx, { title, items, againHash }) {
         item.verb.tip ? h('p', { class: 'verb-tip' }, item.verb.tip) : null,
       ));
     for (const input of inputs) input.disabled = true;
+    hintBtn.disabled = true; // 答案已經出來了，提示沒有意義
     checkBtn.hidden = true;
     nextBtn.hidden = false;
     nextBtn.focus({ preventScroll: true });

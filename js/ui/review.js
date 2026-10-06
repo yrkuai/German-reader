@@ -333,6 +333,7 @@ export function renderCloze(view, ctx) {
       : h('p', { class: 'error' },
         result === 'case' ? '名詞要大寫。' : '答錯了。', '正確答案：', h('b', { lang: 'de' }, q.cloze.answer)));
     input.disabled = true;
+    hintBtn.disabled = true; // 答案已經出來了，提示沒有意義
     checkBtn.hidden = true;
     nextBtn.hidden = false;
     nextBtn.focus({ preventScroll: true });
