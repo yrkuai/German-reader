@@ -185,7 +185,7 @@ test('排程：答對間隔 1 → 3 → 7 → 14 → 30 天，最長 30；答錯
     [1, '2026-10-07'], [3, '2026-10-09'], [7, '2026-10-13'], [14, '2026-10-20'], [30, '2026-11-05'], [30, '2026-11-05'],
   ]);
   srs = nextSrs(srs, false, now);
-  assert.deepEqual(srs, { interval: 0, due: '2026-10-07', on: '2026-10-06', at: now });
+  assert.deepEqual(srs, { interval: 0, due: '2026-10-07', on: '2026-10-06', since: '2026-10-06', at: now });
   assert.equal(nextSrs(srs, true, now).interval, 1);
 });
 
@@ -217,4 +217,53 @@ test('合併：排程取較晚作答的一方，和 reviewedAt 無關', () => {
   assert.equal(mergeEntries(b, a).srs.interval, 7);
   assert.equal(mergeEntries({ ...base }, b).srs.interval, 7);
   assert.equal(mergeEntries({ ...base }, { ...base }).srs, undefined);
+});
+
+test('今天的閃卡：新卡一天最多 newMax 張，今天第一次排程的新卡也算；復原後只剩 { at } 的算新卡', () => {
+  const now = at(2026, 10, 6);
+  const fresh = (key, extra) => ({ key, createdAt: 0, ...extra });
+  const entries = [
+    fresh('due', { srs: { interval: 1, due: '2026-10-05', on: '2026-10-04', since: '2026-10-01', at: 0 } }),
+    fresh('n1'), fresh('n2'), fresh('n3'),
+    fresh('undone', { srs: { at: 5 } }),
+  ];
+  assert.deepEqual(pickDaily(entries, now, 12, 2).map((x) => x.key), ['due', 'n1', 'n2']);
+  assert.deepEqual(pickDaily(entries, now, 12, 3).map((x) => x.key), ['due', 'n1', 'n2', 'n3']);
+  assert.ok(pickDaily(entries, now, 12, 9).some((x) => x.key === 'undone'));
+  // 今天已經學了 1 張新卡：新卡額度剩 1；舊卡複習不佔新卡額度
+  const learned = fresh('l', { srs: { interval: 1, due: '2026-10-07', on: '2026-10-06', since: '2026-10-06', at: now } });
+  const reviewed = fresh('r', { srs: { interval: 3, due: '2026-10-09', on: '2026-10-06', since: '2026-10-01', at: now } });
+  assert.deepEqual(pickDaily([...entries, learned, reviewed], now, 12, 2).map((x) => x.key), ['due', 'n1']);
+});
+
+test('排程記住第一次排程的日期', () => {
+  const s1 = nextSrs(undefined, true, at(2026, 10, 6));
+  assert.equal(s1.since, '2026-10-06');
+  assert.equal(nextSrs(s1, false, at(2026, 10, 8)).since, '2026-10-06');
+  assert.equal(nextSrs({ at: 1 }, true, at(2026, 10, 8)).since, '2026-10-08');
+});
+
+test('一輪練習可以一步步復原：答錯放到最後的會拿回來，第一次作答的紀錄也清掉', () => {
+  const round = createRound(['a', 'b']);
+  assert.equal(round.canUndo, false);
+  round.answer(false); // a 答錯 → [b, a]
+  round.answer(true);  // b 記得 → [a]
+  round.answer(true);  // a 重問記得 → []
+  assert.equal(round.done, true);
+
+  assert.deepEqual(round.undo(), { item: 'a', ok: true, first: false });
+  assert.equal(round.current, 'a');
+  assert.deepEqual(round.undo(), { item: 'b', ok: true, first: true });
+  assert.equal(round.remaining, 2);
+  assert.deepEqual(round.undo(), { item: 'a', ok: false, first: true });
+  assert.equal(round.current, 'a');
+  assert.equal(round.remaining, 2);
+  assert.equal(round.canUndo, false);
+  assert.equal(round.undo(), null);
+
+  // 復原後重新作答，第一次作答改成新的結果
+  round.answer(true);
+  round.answer(true);
+  assert.equal(round.firstTryCorrect(), 2);
+  assert.deepEqual(round.firstTryWrong(), []);
 });

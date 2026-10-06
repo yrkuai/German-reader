@@ -1,10 +1,11 @@
 import { h } from './dom.js';
 import { icon } from './icons.js';
-import { loadSettings, saveSettings, loadVocab, sentenceLookup, setWeak, answerFlashcard } from '../storage.js';
+import { loadSettings, saveSettings, loadVocab, sentenceLookup, setWeak, answerFlashcard, undoFlashcard } from '../storage.js';
 import {
   describe, pickSession, pickDaily, DAILY_CARDS, highlightTokens, pluralNote, makeCloze, checkAnswer, createRound,
 } from '../vocab.js';
 import { speakOnce, cancelSpeech } from '../speech.js';
+import { keepAboveKeyboard } from './keyboard.js';
 
 // 例句填空一輪 10 個字；答錯或「忘了」的放回這一輪最後面，全部答對才結束
 const SESSION_SIZE = 10;
@@ -58,6 +59,8 @@ export function renderFlashcards(view, ctx, extra = false) {
   showDir();
 
   const progress = h('span', { class: 'hint flash-progress' });
+  // 復原上一次作答（可以一直往回，限這一輪）
+  const undoBtn = h('button', { class: 'btn btn-ghost btn-icon-text flash-undo', type: 'button', onclick: () => undo() }, icon('undo'), '復原');
   // 卡片裡面還有喇叭按鈕，所以卡片本身不能是 <button>
   const card = h('div', {
     class: 'flashcard', role: 'button', tabindex: 0,
@@ -71,10 +74,14 @@ export function renderFlashcards(view, ctx, extra = false) {
     h('button', { class: 'btn btn-primary', type: 'button', onclick: () => answer(true) }, '記得'),
   );
   const body = h('div', { class: 'stack' },
-    h('div', { class: 'row row-between' }, h('div', { class: 'speed-group', role: 'radiogroup', 'aria-label': '閃卡方向' }, dirButtons), progress),
+    h('div', { class: 'row row-between' },
+      h('div', { class: 'speed-group', role: 'radiogroup', 'aria-label': '閃卡方向' }, dirButtons),
+      h('div', { class: 'row flash-status' }, undoBtn, progress),
+    ),
     card,
     answers,
   );
+  const screen = [...body.children]; // 結果頁復原時換回來
   view.append(body);
 
   const dirOf = (c) => (settings.flashDir === 'zh' && c.d.meaning ? 'zh' : 'de');
@@ -90,6 +97,7 @@ export function renderFlashcards(view, ctx, extra = false) {
     const c = round.current;
     const dir = dirOf(c);
     progress.textContent = `${extra ? '練習 · ' : ''}剩 ${round.remaining} 個`;
+    undoBtn.disabled = !round.canUndo;
     card.classList.toggle('is-flipped', flipped);
     card.setAttribute('aria-label', flipped ? '答案，點一下翻回正面' : '點一下看答案');
     // 中→德的正面只有中文，這時唸德文等於洩漏答案，所以不放喇叭
@@ -129,15 +137,37 @@ export function renderFlashcards(view, ctx, extra = false) {
     draw();
   }
 
+  // 作答前的資料，復原時還原（key：round 裡的項目）
+  const before = new Map();
+
   function answer(ok) {
-    const { entry } = round.current;
+    const item = round.current;
     // 只用第一次的作答標記不熟、排下次複習；之後重問才記得的，還是算不熟。額外練習不記錄
-    if (round.answer(ok) && !extra) answerFlashcard(entry.key, ok);
+    if (round.answer(ok) && !extra) before.set(item, answerFlashcard(item.entry.key, ok));
     cancelSpeech();
     flipped = false;
     if (!round.done) draw();
-    else showSummary(body, ctx, round, '#/review/flash/extra', undefined, undefined,
-      extra ? '第一次答錯或不確定：' : '第一次答錯或不確定（已標成「不熟」）：', extra ? '再練一輪' : '再練一輪（不影響排程）');
+    else {
+      showSummary(body, ctx, round, '#/review/flash/extra', {
+        missedTitle: extra ? '第一次答錯或不確定：' : '第一次答錯或不確定（已標成「不熟」）：',
+        againLabel: extra ? '再練一輪' : '再練一輪（不影響排程）',
+        onUndo: undo,
+      });
+    }
+  }
+
+  // 回到上一張，顯示正面重新作答
+  function undo() {
+    const last = round.undo();
+    if (!last) return;
+    if (last.first && before.has(last.item)) {
+      undoFlashcard(last.item.entry.key, before.get(last.item));
+      before.delete(last.item);
+    }
+    cancelSpeech();
+    flipped = false;
+    if (body.firstElementChild !== screen[0]) body.replaceChildren(...screen);
+    draw();
   }
 
   draw();
@@ -170,11 +200,12 @@ function practicePool(settings) {
 }
 
 // 一輪結束的結果畫面：第一次就答對幾個，第一次答錯的列出來（動詞練習也共用）
-// labelOf：答錯清單裡每一項顯示的文字；back：「回到…」按鈕的連結與文字；missedTitle：答錯清單的標題；againLabel：再一輪按鈕的文字
-export function showSummary(
-  body, ctx, round, againHash, labelOf = (m) => m.d.display, back = { href: '#/words', label: '回到單字本' },
-  missedTitle = '第一次答錯（已標成「不熟」）：', againLabel = '再一輪',
-) {
+// labelOf：答錯清單裡每一項顯示的文字；back：「回到…」按鈕的連結與文字；missedTitle：答錯清單的標題；
+// againLabel：再一輪按鈕的文字；onUndo：有的話顯示「復原」，復原最後一次作答
+export function showSummary(body, ctx, round, againHash, {
+  labelOf = (m) => m.d.display, back = { href: '#/words', label: '回到單字本' },
+  missedTitle = '第一次答錯（已標成「不熟」）：', againLabel = '再一輪', onUndo = null,
+} = {}) {
   cancelSpeech();
   const missed = round.firstTryWrong();
   body.replaceChildren(h('div', { class: 'empty flash-done' },
@@ -187,6 +218,7 @@ export function showSummary(
       )
       : null,
     h('div', { class: 'actions flash-done-actions' },
+      onUndo ? h('button', { class: 'btn btn-ghost btn-icon-text', type: 'button', onclick: onUndo }, icon('undo'), '復原') : null,
       h('a', { class: 'btn', href: back.href }, back.label),
       h('button', { class: 'btn btn-primary', type: 'button', onclick: () => ctx.navigate(againHash) }, againLabel),
     ),
@@ -313,5 +345,9 @@ export function renderCloze(view, ctx) {
   }
 
   draw();
-  return () => cancelSpeech();
+  const releaseKeyboard = keepAboveKeyboard(view);
+  return () => {
+    cancelSpeech();
+    releaseKeyboard();
+  };
 }

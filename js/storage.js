@@ -294,15 +294,30 @@ export function setWeak(key, weak) {
   writeVocab(vocab, 'progress');
 }
 
-// 閃卡第一次作答：更新不熟標記和排程
+// 閃卡第一次作答：更新不熟標記和排程，回傳作答前的 { weak, srs } 給復原用
 export function answerFlashcard(key, ok) {
   const vocab = loadVocab();
   const entry = vocab[key];
-  if (!entry) return;
+  if (!entry) return null;
+  const before = { weak: !!entry.weak, srs: entry.srs };
   const now = Date.now();
   entry.weak = !ok;
   entry.reviewedAt = now;
   entry.srs = nextSrs(entry.srs, ok, now);
+  writeVocab(vocab, 'progress');
+  return before;
+}
+
+// 復原閃卡的作答。時間用現在，同步時才會蓋過已經傳出去的作答；
+// 原本是新卡時只留 { at }，pickDaily 會把沒有 due 的當成新卡
+export function undoFlashcard(key, before) {
+  const vocab = loadVocab();
+  const entry = vocab[key];
+  if (!entry || !before) return;
+  const now = Date.now();
+  entry.weak = before.weak;
+  entry.reviewedAt = now;
+  entry.srs = { ...(before.srs?.due ? before.srs : {}), at: now };
   writeVocab(vocab, 'progress');
 }
 

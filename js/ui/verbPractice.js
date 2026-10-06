@@ -5,6 +5,7 @@ import { loadSettings, loadVerbs, setVerbWeak } from '../storage.js';
 import { PERSONS, PERSON_LABELS, makeVerbCloze, pronounCloze, checkVerbAnswer, formDisplay, pickCombos } from '../verbs.js';
 import { pickSession, createRound } from '../vocab.js';
 import { speakOnce, cancelSpeech } from '../speech.js';
+import { keepAboveKeyboard } from './keyboard.js';
 
 // 一題：某個動詞的某個人稱。variants 是可以出題的例句（順序隨機），答錯再問時換下一句
 function makeItem(verb, p) {
@@ -178,14 +179,19 @@ function runPractice(view, ctx, { title, items, againHash }) {
   function next() {
     if (!round.done) draw();
     else {
-      showSummary(body, ctx, round, againHash,
-        (m) => `${m.verb.v} · ${PERSON_LABELS[m.p]} → ${formDisplay(m.verb, m.p)}`,
-        { href: '#/verbs', label: '回到動詞本' });
+      showSummary(body, ctx, round, againHash, {
+        labelOf: (m) => `${m.verb.v} · ${PERSON_LABELS[m.p]} → ${formDisplay(m.verb, m.p)}`,
+        back: { href: '#/verbs', label: '回到動詞本' },
+      });
     }
   }
 
   draw();
-  return () => cancelSpeech();
+  const releaseKeyboard = keepAboveKeyboard(view);
+  return () => {
+    cancelSpeech();
+    releaseKeyboard();
+  };
 }
 
 // 沒有例句時唸「du fährst」

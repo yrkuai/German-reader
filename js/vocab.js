@@ -127,10 +127,11 @@ export function describe(entry, getSentence) {
 }
 
 // ---------- 閃卡排程（間隔重複） ----------
-// Entry.srs = { interval: 間隔天數, due: 下次複習日, on: 最後一次排程作答的日期, at: 作答時間 }
-// 日期用手機當地時間的 'YYYY-MM-DD'，0 點換日
+// Entry.srs = { interval: 間隔天數, due: 下次複習日, on: 最後一次排程作答的日期, since: 第一次排程的日期, at: 作答時間 }
+// 沒有 due 的（沒有 srs，或復原後只剩 { at }）都算新卡。日期用手機當地時間的 'YYYY-MM-DD'，0 點換日
 
 export const DAILY_CARDS = 12;
+export const DAILY_NEW = 4; // 12 張裡新卡最多幾張，其餘留給到期的複習卡
 // 第一次就答對：間隔往下一階走（最長 30 天）；答錯或不確定：間隔歸零，明天再考
 export const INTERVALS = [1, 3, 7, 14, 30];
 
@@ -149,20 +150,22 @@ export function addDays(day, n) {
 export function nextSrs(srs, ok, now = Date.now()) {
   const today = dayKey(now);
   const interval = ok ? (INTERVALS.find((d) => d > (srs?.interval || 0)) ?? INTERVALS[INTERVALS.length - 1]) : 0;
-  return { interval, due: addDays(today, Math.max(interval, 1)), on: today, at: now };
+  return { interval, due: addDays(today, Math.max(interval, 1)), on: today, since: srs?.since || today, at: now };
 }
 
-// 今天的閃卡：先出到期的（越早到期越先），再補沒練過的新卡（不熟的先，再依加入時間由舊到新），
-// 一天最多 n 張，今天已經作答過的也算在內
-export function pickDaily(entries, now = Date.now(), n = DAILY_CARDS) {
+// 今天的閃卡：先出到期的（越早到期越先），再補沒練過的新卡（不熟的先，再依加入時間由舊到新）。
+// 一天最多 n 張、其中新卡最多 newMax 張，今天已經作答過的都算在內
+export function pickDaily(entries, now = Date.now(), n = DAILY_CARDS, newMax = DAILY_NEW) {
   const today = dayKey(now);
   const doneToday = entries.filter((e) => e.srs?.on === today).length;
+  const newToday = entries.filter((e) => e.srs?.since === today).length;
   const due = entries
-    .filter((e) => e.srs && e.srs.due <= today)
+    .filter((e) => e.srs?.due && e.srs.due <= today)
     .sort((a, b) => (a.srs.due < b.srs.due ? -1 : a.srs.due > b.srs.due ? 1 : 0));
   const fresh = entries
-    .filter((e) => !e.srs)
-    .sort((a, b) => (!!b.weak - !!a.weak) || ((a.createdAt || 0) - (b.createdAt || 0)));
+    .filter((e) => !e.srs?.due)
+    .sort((a, b) => (!!b.weak - !!a.weak) || ((a.createdAt || 0) - (b.createdAt || 0)))
+    .slice(0, Math.max(0, newMax - newToday));
   return [...due, ...fresh].slice(0, Math.max(0, n - doneToday));
 }
 
@@ -228,6 +231,7 @@ export function checkAnswer(input, { answer, sentenceStart }) {
 export function createRound(items) {
   const queue = [...items];
   const firstTry = new Map();
+  const history = [];
   return {
     get current() { return queue[0] ?? null; },
     get remaining() { return queue.length; },
@@ -239,7 +243,18 @@ export function createRound(items) {
       const first = !firstTry.has(item);
       if (first) firstTry.set(item, ok);
       if (!ok) queue.push(item);
+      history.push({ item, ok, first });
       return first;
+    },
+    get canUndo() { return history.length > 0; },
+    // 復原最後一次作答，回傳 { item, ok, first }（沒有可以復原的就回傳 null）
+    undo() {
+      const last = history.pop();
+      if (!last) return null;
+      if (!last.ok) queue.pop(); // 答錯時放到最後面的那一個；之後的作答都已經先復原了
+      queue.unshift(last.item);
+      if (last.first) firstTry.delete(last.item);
+      return last;
     },
     firstTryCorrect: () => items.filter((it) => firstTry.get(it) === true).length,
     firstTryWrong: () => items.filter((it) => firstTry.get(it) === false),

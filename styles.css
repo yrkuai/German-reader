@@ -854,6 +854,9 @@ select.input { appearance: auto; }
 .flash-example-zh { color: var(--ink-muted); font-size: 14px; line-height: 1.5; }
 .flash-answers { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
 .flash-progress { font-variant-numeric: tabular-nums; }
+.flash-status { gap: 4px; }
+.flash-undo { min-height: 36px; padding: 0 10px; }
+.flash-undo:disabled { visibility: hidden; }
 .flash-done > p:first-child { font-size: 22px; font-weight: 500; }
 .flash-missed > p { font-size: 14px; }
 .flash-done-actions { justify-content: center; margin-top: 12px; }
