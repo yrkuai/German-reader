@@ -815,6 +815,7 @@ select.input { appearance: auto; }
   align-items: center;
   justify-content: center;
   gap: 10px;
+  position: relative;
   width: 100%;
   min-height: 320px;
   padding: 28px 20px;
@@ -825,9 +826,13 @@ select.input { appearance: auto; }
   font: inherit;
   text-align: center;
   cursor: pointer;
+  -webkit-user-select: none; /* 連續點擊翻面時不要選到文字 */
+  user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
-.flashcard.is-flipped { cursor: default; }
+.flashcard:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.flashcard .ctrl { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.flash-speak { position: absolute; top: 12px; right: 12px; }
 .flash-word {
   max-width: 100%;
   font-size: clamp(28px, 8vw, 40px);
@@ -842,12 +847,12 @@ select.input { appearance: auto; }
 .flash-grammar { color: var(--ink-muted); font-size: 16px; font-weight: 500; }
 .flash-meaning { font-size: 20px; line-height: 1.5; }
 .flash-meaning.is-empty { color: var(--ink-muted); font-size: 15px; }
-.flash-example { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; padding-top: 14px; border-top: 1px solid color-mix(in srgb, var(--ink) 15%, transparent); align-self: stretch; }
+.flash-example { display: flex; align-items: center; gap: 12px; text-align: left; margin-top: 10px; padding-top: 14px; border-top: 1px solid color-mix(in srgb, var(--ink) 15%, transparent); align-self: stretch; }
+.flash-example-text { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 4px; }
 .flash-example-de { font-size: 16px; line-height: 1.6; }
 .flash-example-de b { font-weight: 600; }
 .flash-example-zh { color: var(--ink-muted); font-size: 14px; line-height: 1.5; }
-.flash-answers { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.flash-answers[hidden] { display: none; }
+.flash-answers { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
 .flash-progress { font-variant-numeric: tabular-nums; }
 .flash-done > p:first-child { font-size: 22px; font-weight: 500; }
 .flash-missed > p { font-size: 14px; }

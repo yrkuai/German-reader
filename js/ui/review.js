@@ -7,7 +7,8 @@ import { speakOnce, cancelSpeech } from '../speech.js';
 // 一輪 10 個字；答錯或「忘了」的放回這一輪最後面，全部答對才結束
 const SESSION_SIZE = 10;
 
-// 閃卡：每輪從選定範圍隨機抽 10 個。點卡片翻面，再按「忘了」或「記得」
+// 閃卡：每輪從選定範圍隨機抽 10 個。點卡片正反面來回翻，按「忘了」「不確定」「記得」作答。
+// 不自動唸，按喇叭才唸
 export function renderFlashcards(view, ctx) {
   ctx.setBar('閃卡', '#/words');
   const settings = loadSettings();
@@ -42,9 +43,16 @@ export function renderFlashcards(view, ctx) {
   showDir();
 
   const progress = h('span', { class: 'hint flash-progress' });
-  const card = h('button', { class: 'flashcard', type: 'button', onclick: () => { if (!flipped) flip(); } });
+  // 卡片裡面還有喇叭按鈕，所以卡片本身不能是 <button>
+  const card = h('div', {
+    class: 'flashcard', role: 'button', tabindex: 0,
+    onclick: () => flip(),
+    onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); } },
+  });
+  // 「不確定」和「忘了」一樣：放回這一輪最後面再考，第一次作答時標成不熟
   const answers = h('div', { class: 'flash-answers' },
     h('button', { class: 'btn', type: 'button', onclick: () => answer(false) }, '忘了'),
+    h('button', { class: 'btn', type: 'button', onclick: () => answer(false) }, '不確定'),
     h('button', { class: 'btn btn-primary', type: 'button', onclick: () => answer(true) }, '記得'),
   );
   const body = h('div', { class: 'stack' },
@@ -56,56 +64,64 @@ export function renderFlashcards(view, ctx) {
 
   const dirOf = (c) => (settings.flashDir === 'zh' && c.d.meaning ? 'zh' : 'de');
 
+  // 喇叭按鈕：只唸不翻面
+  const speakBtn = (text, label, cls) => h('button', {
+    class: `ctrl ${cls}`, type: 'button', 'aria-label': label,
+    onclick: (e) => { e.stopPropagation(); speak(text); },
+    onkeydown: (e) => e.stopPropagation(),
+  }, icon('speaker'));
+
   function draw() {
     const c = round.current;
     const dir = dirOf(c);
     progress.textContent = `剩 ${round.remaining} 個`;
-    answers.hidden = !flipped;
     card.classList.toggle('is-flipped', flipped);
-    card.setAttribute('aria-label', flipped ? '答案' : '點一下看答案');
+    card.setAttribute('aria-label', flipped ? '答案，點一下翻回正面' : '點一下看答案');
+    // 中→德的正面只有中文，這時唸德文等於洩漏答案，所以不放喇叭
+    const wordSpeak = flipped || dir === 'de' ? speakBtn(c.d.display, `唸「${c.d.display}」`, 'flash-speak') : null;
 
     if (!flipped) {
       fill(card,
+        wordSpeak,
         dir === 'de'
           ? h('span', { class: 'flash-word', lang: 'de' }, c.d.display)
           : h('span', { class: 'flash-word flash-zh' }, c.d.meaning),
         settings.flashDir === 'zh' && dir === 'de' ? h('span', { class: 'hint' }, '這個字還沒有翻譯') : null,
       );
-      if (dir === 'de') speak(c.d.display);
       return;
     }
 
     const ex = c.d.example;
     fill(card,
+      wordSpeak,
       h('span', { class: 'flash-word', lang: 'de' }, c.d.display),
       pluralNote(c.d.info) ? h('span', { class: 'flash-grammar' }, pluralNote(c.d.info)) : null,
       h('span', { class: c.d.meaning ? 'flash-meaning' : 'flash-meaning is-empty' }, c.d.meaning || '尚無翻譯'),
       ex
         ? h('span', { class: 'flash-example' },
-          h('span', { class: 'flash-example-de', lang: 'de' }, highlightTokens(ex.de, ex.form).map((p) => (p.hit ? h('b', {}, p.text) : p.text))),
-          ex.zh ? h('span', { class: 'flash-example-zh' }, ex.zh) : null,
+          h('span', { class: 'flash-example-text' },
+            h('span', { class: 'flash-example-de', lang: 'de' }, highlightTokens(ex.de, ex.form).map((p) => (p.hit ? h('b', {}, p.text) : p.text))),
+            ex.zh ? h('span', { class: 'flash-example-zh' }, ex.zh) : null,
+          ),
+          speakBtn(ex.de, '唸例句', 'flash-example-speak'),
         )
         : null,
     );
   }
 
   function flip() {
-    const c = round.current;
-    flipped = true;
+    flipped = !flipped;
     draw();
-    // 中→德：翻面時唸德文；沒有翻譯：唸整句，從句子裡理解
-    if (dirOf(c) === 'zh') speak(c.d.display);
-    else if (!c.d.meaning && c.d.example) speak(c.d.example.de);
-    answers.querySelector('.btn-primary').focus({ preventScroll: true });
   }
 
   function answer(ok) {
     const { entry } = round.current;
     // 只用第一次的作答標記不熟；之後重問才記得的，還是算不熟
     if (round.answer(ok)) setWeak(entry.key, !ok);
+    cancelSpeech();
     flipped = false;
     if (!round.done) draw();
-    else showSummary(body, ctx, round, '#/review/flash');
+    else showSummary(body, ctx, round, '#/review/flash', undefined, undefined, '第一次答錯或不確定');
   }
 
   draw();
@@ -138,8 +154,8 @@ function practicePool(settings) {
 }
 
 // 一輪結束的結果畫面：第一次就答對幾個，第一次答錯的列出來（動詞練習也共用）
-// labelOf：答錯清單裡每一項顯示的文字；back：「回到…」按鈕的連結與文字
-export function showSummary(body, ctx, round, againHash, labelOf = (m) => m.d.display, back = { href: '#/words', label: '回到單字本' }) {
+// labelOf：答錯清單裡每一項顯示的文字；back：「回到…」按鈕的連結與文字；missedTitle：答錯清單的標題
+export function showSummary(body, ctx, round, againHash, labelOf = (m) => m.d.display, back = { href: '#/words', label: '回到單字本' }, missedTitle = '第一次答錯') {
   cancelSpeech();
   const missed = round.firstTryWrong();
   body.replaceChildren(h('div', { class: 'empty flash-done' },
@@ -147,7 +163,7 @@ export function showSummary(body, ctx, round, againHash, labelOf = (m) => m.d.di
     h('p', { class: 'muted' }, `第一次就答對 ${round.firstTryCorrect()} 個`),
     missed.length
       ? h('div', { class: 'flash-missed' },
-        h('p', { class: 'muted' }, '第一次答錯（已標成「不熟」）：'),
+        h('p', { class: 'muted' }, `${missedTitle}（已標成「不熟」）：`),
         h('ul', {}, missed.map((m) => h('li', { lang: 'de' }, labelOf(m)))),
       )
       : null,
