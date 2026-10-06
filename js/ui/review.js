@@ -1,26 +1,41 @@
 import { h } from './dom.js';
 import { icon } from './icons.js';
-import { loadSettings, saveSettings, loadVocab, sentenceLookup, setWeak } from '../storage.js';
-import { describe, pickSession, highlightTokens, pluralNote, makeCloze, checkAnswer, createRound } from '../vocab.js';
+import { loadSettings, saveSettings, loadVocab, sentenceLookup, setWeak, answerFlashcard } from '../storage.js';
+import {
+  describe, pickSession, pickDaily, DAILY_CARDS, highlightTokens, pluralNote, makeCloze, checkAnswer, createRound,
+} from '../vocab.js';
 import { speakOnce, cancelSpeech } from '../speech.js';
 
-// 一輪 10 個字；答錯或「忘了」的放回這一輪最後面，全部答對才結束
+// 例句填空一輪 10 個字；答錯或「忘了」的放回這一輪最後面，全部答對才結束
 const SESSION_SIZE = 10;
 
-// 閃卡：每輪從選定範圍隨機抽 10 個。點卡片正反面來回翻，按「忘了」「不確定」「記得」作答。
-// 不自動唸，按喇叭才唸
-export function renderFlashcards(view, ctx) {
-  ctx.setBar('閃卡', '#/words');
+// 閃卡：每天依排程出最多 12 張（pickDaily），第一次作答決定下次複習日。
+// extra：今天的做完後額外練習，從全部單字隨機抽 12 張，不改排程也不改不熟標記。
+// 點卡片正反面來回翻，按「忘了」「不確定」「記得」作答；不自動唸，按喇叭才唸
+export function renderFlashcards(view, ctx, extra = false) {
+  ctx.setBar(extra ? '閃卡練習' : '閃卡', '#/words');
   const settings = loadSettings();
   const speak = (text) => speakOnce(text, { voiceURI: settings.voiceURI, rate: settings.rate });
 
-  const pool = practicePool(settings);
+  const pool = Object.values(loadVocab());
   if (!pool.length) {
     ctx.navigate('#/words');
     return;
   }
+  const picked = extra ? pickSession(pool, DAILY_CARDS) : pickDaily(pool);
+  if (!picked.length) {
+    view.append(h('div', { class: 'empty flash-done' },
+      h('p', {}, '今天的閃卡都完成了'),
+      h('p', { class: 'muted' }, '還想練的話可以再練一輪，不會影響複習排程。'),
+      h('div', { class: 'actions flash-done-actions' },
+        h('a', { class: 'btn', href: '#/words' }, '回到單字本'),
+        h('a', { class: 'btn btn-primary', href: '#/review/flash/extra' }, '再練一輪'),
+      ),
+    ));
+    return;
+  }
   const lookup = sentenceLookup();
-  const round = createRound(pickSession(pool, SESSION_SIZE).map((entry) => ({ entry, d: describe(entry, lookup) })));
+  const round = createRound(picked.map((entry) => ({ entry, d: describe(entry, lookup) })));
   let flipped = false;
 
   // ---------- 方向：德→中／中→德（沒有翻譯的字一律德→中） ----------
@@ -74,7 +89,7 @@ export function renderFlashcards(view, ctx) {
   function draw() {
     const c = round.current;
     const dir = dirOf(c);
-    progress.textContent = `剩 ${round.remaining} 個`;
+    progress.textContent = `${extra ? '練習 · ' : ''}剩 ${round.remaining} 個`;
     card.classList.toggle('is-flipped', flipped);
     card.setAttribute('aria-label', flipped ? '答案，點一下翻回正面' : '點一下看答案');
     // 中→德的正面只有中文，這時唸德文等於洩漏答案，所以不放喇叭
@@ -116,12 +131,13 @@ export function renderFlashcards(view, ctx) {
 
   function answer(ok) {
     const { entry } = round.current;
-    // 只用第一次的作答標記不熟；之後重問才記得的，還是算不熟
-    if (round.answer(ok)) setWeak(entry.key, !ok);
+    // 只用第一次的作答標記不熟、排下次複習；之後重問才記得的，還是算不熟。額外練習不記錄
+    if (round.answer(ok) && !extra) answerFlashcard(entry.key, ok);
     cancelSpeech();
     flipped = false;
     if (!round.done) draw();
-    else showSummary(body, ctx, round, '#/review/flash', undefined, undefined, '第一次答錯或不確定');
+    else showSummary(body, ctx, round, '#/review/flash/extra', undefined, undefined,
+      extra ? '第一次答錯或不確定：' : '第一次答錯或不確定（已標成「不熟」）：', extra ? '再練一輪' : '再練一輪（不影響排程）');
   }
 
   draw();
@@ -147,15 +163,18 @@ function fill(el, ...children) {
   el.replaceChildren(...children.filter((c) => c != null && c !== false));
 }
 
-// 練習範圍：全部或只練不熟的
+// 例句填空的練習範圍：全部或只練不熟的（閃卡改用排程，不看這個設定）
 function practicePool(settings) {
   const all = Object.values(loadVocab());
   return settings.vocabScope === 'weak' ? all.filter((e) => e.weak) : all;
 }
 
 // 一輪結束的結果畫面：第一次就答對幾個，第一次答錯的列出來（動詞練習也共用）
-// labelOf：答錯清單裡每一項顯示的文字；back：「回到…」按鈕的連結與文字；missedTitle：答錯清單的標題
-export function showSummary(body, ctx, round, againHash, labelOf = (m) => m.d.display, back = { href: '#/words', label: '回到單字本' }, missedTitle = '第一次答錯') {
+// labelOf：答錯清單裡每一項顯示的文字；back：「回到…」按鈕的連結與文字；missedTitle：答錯清單的標題；againLabel：再一輪按鈕的文字
+export function showSummary(
+  body, ctx, round, againHash, labelOf = (m) => m.d.display, back = { href: '#/words', label: '回到單字本' },
+  missedTitle = '第一次答錯（已標成「不熟」）：', againLabel = '再一輪',
+) {
   cancelSpeech();
   const missed = round.firstTryWrong();
   body.replaceChildren(h('div', { class: 'empty flash-done' },
@@ -163,13 +182,13 @@ export function showSummary(body, ctx, round, againHash, labelOf = (m) => m.d.di
     h('p', { class: 'muted' }, `第一次就答對 ${round.firstTryCorrect()} 個`),
     missed.length
       ? h('div', { class: 'flash-missed' },
-        h('p', { class: 'muted' }, `${missedTitle}（已標成「不熟」）：`),
+        h('p', { class: 'muted' }, missedTitle),
         h('ul', {}, missed.map((m) => h('li', { lang: 'de' }, labelOf(m)))),
       )
       : null,
     h('div', { class: 'actions flash-done-actions' },
       h('a', { class: 'btn', href: back.href }, back.label),
-      h('button', { class: 'btn btn-primary', type: 'button', onclick: () => ctx.navigate(againHash) }, '再一輪'),
+      h('button', { class: 'btn btn-primary', type: 'button', onclick: () => ctx.navigate(againHash) }, againLabel),
     ),
   ));
 }

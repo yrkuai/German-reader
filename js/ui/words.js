@@ -9,7 +9,7 @@ import {
 import { describe, highlightTokens, pluralNote } from '../vocab.js';
 import { speakOnce, cancelSpeech } from '../speech.js';
 
-// 單字本：列出所有標記的單字，上方選練習範圍、進入閃卡
+// 單字本：列出所有標記的單字，上方選例句填空的練習範圍（閃卡依排程出題，不看範圍）
 export function renderWords(view, ctx) {
   ctx.setBar('單字本', '#/');
   const settings = loadSettings();

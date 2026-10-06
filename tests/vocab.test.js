@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   vocabKey, displayOf, buildMarkIndex, findMarked, mergeEntries, refreshVocab, describe, pickSession, highlightTokens, pluralNote, makeCloze, checkAnswer, createRound,
+  dayKey, addDays, nextSrs, pickDaily,
 } from '../js/vocab.js';
 import { lookupWord } from '../js/importer.js';
 
@@ -160,4 +161,60 @@ test('一輪練習：答錯放回最後，全部答對才結束，第一次的�
   assert.equal(round.current, null);
   assert.equal(round.firstTryCorrect(), 2);
   assert.deepEqual(round.firstTryWrong(), ['B']);
+});
+
+// ---------- 閃卡排程 ----------
+const at = (y, m, d, h = 12) => new Date(y, m - 1, d, h).getTime();
+
+test('日期：當地時間 0 點換日，加天數可跨月', () => {
+  assert.equal(dayKey(at(2026, 10, 6, 0)), '2026-10-06');
+  assert.equal(dayKey(at(2026, 10, 6, 23)), '2026-10-06');
+  assert.equal(addDays('2026-10-30', 3), '2026-11-02');
+  assert.equal(addDays('2026-12-31', 1), '2027-01-01');
+});
+
+test('排程：答對間隔 1 → 3 → 7 → 14 → 30 天，最長 30；答錯歸零、明天再考', () => {
+  const now = at(2026, 10, 6);
+  let srs;
+  const dues = [];
+  for (let i = 0; i < 6; i++) {
+    srs = nextSrs(srs, true, now);
+    dues.push([srs.interval, srs.due]);
+  }
+  assert.deepEqual(dues, [
+    [1, '2026-10-07'], [3, '2026-10-09'], [7, '2026-10-13'], [14, '2026-10-20'], [30, '2026-11-05'], [30, '2026-11-05'],
+  ]);
+  srs = nextSrs(srs, false, now);
+  assert.deepEqual(srs, { interval: 0, due: '2026-10-07', on: '2026-10-06', at: now });
+  assert.equal(nextSrs(srs, true, now).interval, 1);
+});
+
+test('今天的閃卡：先到期的（越早越先），再補新卡（不熟先、再由舊到新），扣掉今天做過的', () => {
+  const now = at(2026, 10, 6);
+  const e = (key, extra) => ({ key, createdAt: 0, ...extra });
+  const entries = [
+    e('later', { srs: { interval: 3, due: '2026-10-07', on: '2026-10-04', at: 0 } }),
+    e('due', { srs: { interval: 3, due: '2026-10-06', on: '2026-10-03', at: 0 } }),
+    e('overdue', { srs: { interval: 1, due: '2026-10-01', on: '2026-09-30', at: 0 } }),
+    e('newOld', { createdAt: 1 }),
+    e('newWeak', { createdAt: 5, weak: true }),
+    e('newYoung', { createdAt: 9 }),
+  ];
+  assert.deepEqual(pickDaily(entries, now, 12).map((x) => x.key), ['overdue', 'due', 'newWeak', 'newOld', 'newYoung']);
+  assert.deepEqual(pickDaily(entries, now, 3).map((x) => x.key), ['overdue', 'due', 'newWeak']);
+  // 今天已經作答 2 張：只剩 1 張額度
+  const done = [...entries, e('a', { srs: { interval: 1, due: '2026-10-07', on: '2026-10-06', at: now } }),
+    e('b', { srs: { interval: 0, due: '2026-10-07', on: '2026-10-06', at: now } })];
+  assert.deepEqual(pickDaily(done, now, 3).map((x) => x.key), ['overdue']);
+  assert.deepEqual(pickDaily(done, now, 2), []);
+});
+
+test('合併：排程取較晚作答的一方，和 reviewedAt 無關', () => {
+  const base = { key: 'gehen', forms: [], sources: [], createdAt: 1, updatedAt: 1 };
+  const a = { ...base, reviewedAt: 50, srs: { interval: 3, due: '2026-10-09', on: '2026-10-06', at: 10 } };
+  const b = { ...base, reviewedAt: 20, srs: { interval: 7, due: '2026-10-14', on: '2026-10-07', at: 20 } };
+  assert.equal(mergeEntries(a, b).srs.interval, 7);
+  assert.equal(mergeEntries(b, a).srs.interval, 7);
+  assert.equal(mergeEntries({ ...base }, b).srs.interval, 7);
+  assert.equal(mergeEntries({ ...base }, { ...base }).srs, undefined);
 });

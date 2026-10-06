@@ -1,4 +1,4 @@
-import { refreshVocab } from './vocab.js';
+import { refreshVocab, nextSrs } from './vocab.js';
 
 // localStorage 讀寫。所有 key 都加上 gr: 前綴，
 // 避免和同一個 <帳號>.github.io 底下的其他專案衝突。
@@ -291,6 +291,18 @@ export function setWeak(key, weak) {
   if (!entry) return;
   entry.weak = weak;
   entry.reviewedAt = Date.now();
+  writeVocab(vocab, 'progress');
+}
+
+// 閃卡第一次作答：更新不熟標記和排程
+export function answerFlashcard(key, ok) {
+  const vocab = loadVocab();
+  const entry = vocab[key];
+  if (!entry) return;
+  const now = Date.now();
+  entry.weak = !ok;
+  entry.reviewedAt = now;
+  entry.srs = nextSrs(entry.srs, ok, now);
   writeVocab(vocab, 'progress');
 }
 

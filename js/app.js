@@ -55,7 +55,7 @@ const ctx = {
 };
 
 // 路由：#/ 文章列表、#/new 新增文章、#/read/<id> 閱讀、#/translate/<id> 取得翻譯、#/settings 設定、
-// #/pair/<配對碼> 掃 QR code 設定同步、#/words 單字本、#/review/flash 閃卡、#/review/cloze 例句填空、
+// #/pair/<配對碼> 掃 QR code 設定同步、#/words 單字本、#/review/flash 閃卡（/extra 額外練習）、#/review/cloze 例句填空、
 // #/verbs 動詞、#/verbs/new 新增動詞、#/verbs/more 增加例句、#/verbs/practice/<key> 單一動詞練習、#/verbs/mix 總練習
 function route() {
   const hash = location.hash || '#/';
@@ -74,7 +74,7 @@ function route() {
   else if (parts[0] === 'read' && parts[1]) cleanup = renderReader(view, decodeURIComponent(parts[1]), ctx);
   else if (parts[0] === 'pair') cleanup = renderPair(view, parts[1] || '', ctx);
   else if (parts[0] === 'words') cleanup = renderWords(view, ctx);
-  else if (parts[0] === 'review' && parts[1] === 'flash') cleanup = renderFlashcards(view, ctx);
+  else if (parts[0] === 'review' && parts[1] === 'flash') cleanup = renderFlashcards(view, ctx, parts[2] === 'extra');
   else if (parts[0] === 'review' && parts[1] === 'cloze') cleanup = renderCloze(view, ctx);
   else if (parts[0] === 'verbs' && parts[1] === 'new') cleanup = renderNewVerbs(view, ctx, 'new');
   else if (parts[0] === 'verbs' && parts[1] === 'more') cleanup = renderNewVerbs(view, ctx, 'more');

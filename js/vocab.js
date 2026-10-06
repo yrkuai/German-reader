@@ -54,6 +54,8 @@ export function mergeEntries(a, b) {
   if (!b) return normalizeEntry(a);
   const newer = (b.updatedAt || 0) > (a.updatedAt || 0) ? b : a;
   const reviewed = (b.reviewedAt || 0) > (a.reviewedAt || 0) ? b : a;
+  // 閃卡排程取較晚作答的一方（例句填空也會改 reviewedAt，所以排程自己記時間）
+  const srs = (b.srs?.at || 0) > (a.srs?.at || 0) ? b.srs : a.srs;
   const sources = new Map();
   for (const s of [...(a.sources || []), ...(b.sources || [])]) if (!sources.has(sourceId(s))) sources.set(sourceId(s), s);
   return normalizeEntry({
@@ -62,6 +64,7 @@ export function mergeEntries(a, b) {
     sources: [...sources.values()],
     weak: !!reviewed.weak,
     reviewedAt: reviewed.reviewedAt || 0,
+    srs,
     createdAt: Math.min(a.createdAt || Infinity, b.createdAt || Infinity),
     updatedAt: Math.max(a.updatedAt || 0, b.updatedAt || 0),
   });
@@ -121,6 +124,46 @@ export function describe(entry, getSentence) {
     fallback ??= { display: entry.display || s.form, meaning: null, info: null, form: s.form, example };
   }
   return fallback || { display: entry.display || entry.key, meaning: null, info: null, form: entry.key, example: null };
+}
+
+// ---------- 閃卡排程（間隔重複） ----------
+// Entry.srs = { interval: 間隔天數, due: 下次複習日, on: 最後一次排程作答的日期, at: 作答時間 }
+// 日期用手機當地時間的 'YYYY-MM-DD'，0 點換日
+
+export const DAILY_CARDS = 12;
+// 第一次就答對：間隔往下一階走（最長 30 天）；答錯或不確定：間隔歸零，明天再考
+export const INTERVALS = [1, 3, 7, 14, 30];
+
+export function dayKey(ms) {
+  const d = new Date(ms);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+export function addDays(day, n) {
+  const [y, m, d] = day.split('-').map(Number);
+  return dayKey(new Date(y, m - 1, d + n).getTime());
+}
+
+// 第一次作答後的新排程
+export function nextSrs(srs, ok, now = Date.now()) {
+  const today = dayKey(now);
+  const interval = ok ? (INTERVALS.find((d) => d > (srs?.interval || 0)) ?? INTERVALS[INTERVALS.length - 1]) : 0;
+  return { interval, due: addDays(today, Math.max(interval, 1)), on: today, at: now };
+}
+
+// 今天的閃卡：先出到期的（越早到期越先），再補沒練過的新卡（不熟的先，再依加入時間由舊到新），
+// 一天最多 n 張，今天已經作答過的也算在內
+export function pickDaily(entries, now = Date.now(), n = DAILY_CARDS) {
+  const today = dayKey(now);
+  const doneToday = entries.filter((e) => e.srs?.on === today).length;
+  const due = entries
+    .filter((e) => e.srs && e.srs.due <= today)
+    .sort((a, b) => (a.srs.due < b.srs.due ? -1 : a.srs.due > b.srs.due ? 1 : 0));
+  const fresh = entries
+    .filter((e) => !e.srs)
+    .sort((a, b) => (!!b.weak - !!a.weak) || ((a.createdAt || 0) - (b.createdAt || 0)));
+  return [...due, ...fresh].slice(0, Math.max(0, n - doneToday));
 }
 
 // 每一輪隨機抽 n 個
