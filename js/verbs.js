@@ -66,10 +66,16 @@ export function buildVerbPrompt(verbs) {
    - 可分動詞只寫變化的那一部分，不要寫前綴（aufstehen 的 ich 寫 "stehe"）
 7. "s"：例句，每個人稱各 2 句
    - "p"：人稱（ich、du、er、wir、ihr、sie）
-   - "de"：德文短句，A1 程度、5～8 個字，日常、簡單，彼此不同
-   - "zh"：繁體中文翻譯
-   - 句子裡必須用到這個人稱的變化形；er 可以用 er、sie、es 或名字當主詞，sie 可以用 sie（他們）或 Sie（您）
-   - 可分動詞的前綴要照德文語序放在句尾
+   - "de"：德文母語者日常真的會說的口語句子，不要課本式的造句
+     - 長短不限，難度靠字彙控制：用常見的字，一句裡不常見的字最多一兩個
+     - 同一個人稱的 2 句：1 句是簡短的口語反應或問句，1 句是比較完整的日常句子
+     - 情境要分散，輪流用：朋友聊天、家裡、工作、餐廳或購物、傳訊息
+     - 可以自然地用語氣詞（doch、mal、ja、halt、eben…）
+     - 動詞要寫完整的標準形，不要縮寫（寫 habe 不寫 hab，寫 gibt es 不寫 gibt's）
+     - 一定要寫出主詞，不要省略
+   - "zh"：自然口語的繁體中文翻譯（台灣用語），不要逐字翻
+   - 句子裡必須用到這個人稱的變化形，而且是這個動詞本身在變化（不要寫成 muss/will + 不定式）；er 可以用 er、sie、es 或名字當主詞，sie 可以用 sie（他們）或 Sie（您）
+   - 可分動詞的前綴要照德文語序放在句尾；不要把可分動詞放在 weil、dass 等子句裡（前綴會黏回去）
 
 規則：
 - 只用現在式，不要用其他時態
@@ -85,8 +91,8 @@ export function buildVerbPrompt(verbs) {
     "prefix": null,
     "forms": { "ich": "fahre", "du": "fährst", "er": "fährt", "wir": "fahren", "ihr": "fahrt", "sie": "fahren" },
     "s": [
-      { "p": "ich", "de": "Ich fahre heute nach Berlin.", "zh": "我今天去柏林。" },
-      { "p": "du", "de": "Fährst du mit dem Bus?", "zh": "你搭公車嗎？" }
+      { "p": "ich", "de": "Ich fahre schnell zum Supermarkt.", "zh": "我去一下超市。" },
+      { "p": "du", "de": "Fährst du mich kurz zum Bahnhof?", "zh": "你可以載我去一下車站嗎？" }
     ]
   },
   {
@@ -97,7 +103,7 @@ export function buildVerbPrompt(verbs) {
     "prefix": "auf",
     "forms": { "ich": "stehe", "du": "stehst", "er": "steht", "wir": "stehen", "ihr": "steht", "sie": "stehen" },
     "s": [
-      { "p": "ich", "de": "Ich stehe um sieben Uhr auf.", "zh": "我七點起床。" }
+      { "p": "ich", "de": "Morgen stehe ich mal nicht so früh auf.", "zh": "明天我不要那麼早起了。" }
     ]
   }
 ]
@@ -325,9 +331,16 @@ export function buildMorePrompt(verbs) {
 
 請為下面每個動詞，每個人稱（ich、du、er、wir、ihr、sie）各再給 2 句新的例句。
 - 不可以和「現有例句」重複，也不要只換一個字
-- A1 程度、5～8 個字，日常、簡單
-- 句子裡必須用到這個人稱的變化形；er 可以用 er、sie、es 或名字當主詞，sie 可以用 sie（他們）或 Sie（您）
-- 可分動詞的前綴要照德文語序放在句尾
+- 德文母語者日常真的會說的口語句子，不要課本式的造句
+- 長短不限，難度靠字彙控制：用常見的字，一句裡不常見的字最多一兩個
+- 同一個人稱的 2 句：1 句是簡短的口語反應或問句，1 句是比較完整的日常句子
+- 情境要分散，輪流用：朋友聊天、家裡、工作、餐廳或購物、傳訊息
+- 可以自然地用語氣詞（doch、mal、ja、halt、eben…）
+- 動詞要寫完整的標準形，不要縮寫（寫 habe 不寫 hab，寫 gibt es 不寫 gibt's）
+- 一定要寫出主詞，不要省略
+- 中文翻譯要自然口語（台灣用語），不要逐字翻
+- 句子裡必須用到這個人稱的變化形，而且是這個動詞本身在變化（不要寫成 muss/will + 不定式）；er 可以用 er、sie、es 或名字當主詞，sie 可以用 sie（他們）或 Sie（您）
+- 可分動詞的前綴要照德文語序放在句尾；不要把可分動詞放在 weil、dass 等子句裡（前綴會黏回去）
 - 只用現在式
 - 只回傳 JSON 陣列，不要任何其他文字，不要用 Markdown
 
