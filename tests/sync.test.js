@@ -196,3 +196,23 @@ test('動詞：一邊刪除，另一邊也刪除', () => {
   const remote = { ...EMPTY, verbs: { fahren: verb('fahren') }, verbsDeleted: {} };
   assert.deepEqual(mergeData(local, remote, NOW).data.verbs, {});
 });
+
+test('動詞（v4）：一邊補上完成式，另一邊是舊版（沒有 perfekt）：合併後保留過去分詞', () => {
+  // 舊版裝置的動詞沒有 perfekt、例句也沒有 tense
+  const old = { ...EMPTY, v: 3, verbs: { fahren: verb('fahren', { updatedAt: NOW - DAY, sentences: [{ p: 'ich', de: 'Ich fahre.', zh: null }] }) }, verbsDeleted: {} };
+  const filled = verb('fahren', {
+    updatedAt: NOW,
+    sentences: [{ p: 'ich', de: 'Ich fahre.', zh: null }, { p: 'ich', de: 'Ich bin gefahren.', zh: null, tense: 'perfekt' }],
+    weak: { 'du:perfekt': { weak: true, at: NOW } },
+  });
+  filled.perfekt = { aux: 'sein', partizip: 'gefahren' };
+  const local = { ...EMPTY, verbs: { fahren: filled }, verbsDeleted: {} };
+  const { data } = mergeData(local, old, NOW);
+  assert.deepEqual(data.verbs.fahren.perfekt, { aux: 'sein', partizip: 'gefahren' });
+  assert.equal(data.verbs.fahren.sentences.length, 2);
+  assert.equal(data.verbs.fahren.weak['du:perfekt'].weak, true);
+  // 再合併一次不應該又改動（canonical 一致）
+  const again = mergeData(data, structuredClone(data), NOW);
+  assert.equal(again.changedLocal, false);
+  assert.equal(again.changedRemote, false);
+});

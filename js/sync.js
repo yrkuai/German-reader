@@ -10,8 +10,9 @@ import { mergeVerbs, normalizeVerb } from './verbs.js';
 
 const API = 'https://api.github.com';
 export const GIST_FILE = 'german-reader-sync.json';
-// v2 加入單字本（vocab、vocabDeleted），v3 加入動詞練習（verbs、verbsDeleted）；讀到舊版時缺的部分當作空的
-const DATA_VERSION = 3;
+// v2 加入單字本（vocab、vocabDeleted），v3 加入動詞練習（verbs、verbsDeleted），
+// v4 動詞加入完成式（perfekt、例句 tense、不熟改以「人稱＋時態」為鍵）；讀到舊版時缺的部分當作空的或現在式
+const DATA_VERSION = 4;
 const DELETED_KEEP_MS = 90 * 24 * 60 * 60 * 1000;
 const CONTENT_DELAY_MS = 3000;    // 新增、翻譯、刪除後幾秒同步
 const PROGRESS_DELAY_MS = 15000;  // 只有閱讀進度變動時，等久一點，播放時不用每句都上傳

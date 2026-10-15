@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   PERSONS, dedupeInput, makeVerbBatches, buildVerbPrompt, parseVerbs, makeVerbCloze, pronounCloze, checkVerbAnswer,
   highlightVerb, markStemChange, mergeVerbs, formDisplay, hasWeak, buildMorePrompt, parseMoreSentences, pickCombos,
+  perfektCloze, pronounClozePerfekt, answerDisplay, weakKey, buildPerfektPrompt, parsePerfekt,
 } from '../js/verbs.js';
 import { ImportError } from '../js/importer.js';
 
@@ -214,9 +215,124 @@ test('綜合練習出題：不重複、不熟優先、人稱平均、組合不�
     assert.equal(combos.length, 20);
     assert.equal(new Set(combos.map((c) => `${c.key}:${c.p}`)).size, 20);
     assert.ok(combos.some((c) => c.key === 'a' && c.p === 'du')); // 不熟的一定在
+    assert.ok(combos.every((c) => c.tense === 'present')); // 沒有過去分詞 → 全部現在式
     const counts = PERSONS.map((p) => combos.filter((c) => c.p === p).length);
     assert.ok(Math.max(...counts) - Math.min(...counts) <= 1, String(counts));
   }
   assert.equal(pickCombos([mk('a'), mk('b')], 20).length, 12);
   assert.deepEqual(pickCombos([], 20), []);
+});
+
+// ---------- 完成式（資料格式 v4） ----------
+
+const FAHREN_P = {
+  ...FAHREN,
+  aux: 'sein', partizip: 'gefahren',
+  s: [
+    { p: 'ich', tense: 'present', de: 'Ich fahre heute nach Berlin.', zh: '' },
+    { p: 'ich', tense: 'perfekt', de: 'Ich bin gestern nach Berlin gefahren.', zh: '' },
+    { p: 'du', tense: 'perfekt', de: 'Bist du mit dem Zug gefahren?', zh: '' },
+  ],
+};
+
+test('匯入：解析助動詞、過去分詞與完成式例句', () => {
+  const [verb] = parseVerbs(JSON.stringify([FAHREN_P])).verbs;
+  assert.deepEqual(verb.perfekt, { aux: 'sein', partizip: 'gefahren' });
+  assert.equal(verb.sentences.filter((s) => s.tense === 'perfekt').length, 2);
+  assert.equal(verb.sentences.find((s) => s.tense === 'present').de, 'Ich fahre heute nach Berlin.');
+});
+
+test('匯入：缺過去分詞資料、或完成式句子沒有助動詞+分詞，都跳過', () => {
+  const noPerfekt = { ...FAHREN, s: [{ p: 'ich', tense: 'perfekt', de: 'Ich bin gefahren.' }] };
+  const r1 = parseVerbs(JSON.stringify([noPerfekt]));
+  assert.equal(r1.verbs[0].sentences.length, 0);
+  assert.match(r1.skipped[0].reason, /沒有過去分詞資料/);
+
+  const badAux = { ...FAHREN_P, s: [{ p: 'du', tense: 'perfekt', de: 'Du fährst nach Hause.' }] };
+  const r2 = parseVerbs(JSON.stringify([badAux]));
+  assert.equal(r2.verbs[0].sentences.length, 0);
+  assert.match(r2.skipped[0].reason, /沒有出現 bist … gefahren/);
+});
+
+test('完成式挖空：助動詞 + 過去分詞兩格，一格打兩字自動拆、句首不算大小寫', () => {
+  const [verb] = parseVerbs(JSON.stringify([FAHREN_P])).verbs;
+  const c = perfektCloze('Ich bin gestern nach Berlin gefahren.', verb, 'ich');
+  assert.deepEqual(c.answers, ['bin', 'gefahren']);
+  assert.deepEqual(c.segments.filter((s) => 'blank' in s).map((s) => s.blank), [0, 1]);
+  assert.equal(checkVerbAnswer(['bin', 'gefahren'], c), 'ok');
+  assert.equal(checkVerbAnswer(['bin gefahren', ''], c), 'ok');
+  assert.equal(checkVerbAnswer(['habe', 'gefahren'], c), 'wrong');
+  const q = perfektCloze('Bist du mit dem Zug gefahren?', verb, 'du');
+  assert.deepEqual(q.answers, ['Bist', 'gefahren']);
+  assert.equal(checkVerbAnswer(['bist', 'gefahren'], q), 'ok');
+});
+
+test('完成式沒有例句的人稱：只有主詞的兩格題目', () => {
+  const [verb] = parseVerbs(JSON.stringify([FAHREN_P])).verbs;
+  const c = pronounClozePerfekt(verb, 'wir');
+  assert.equal(c.segments[0].text, 'wir ');
+  assert.deepEqual(c.answers, ['sind', 'gefahren']);
+});
+
+test('答案顯示與不熟 key：現在式用變化形、完成式用助動詞+過去分詞', () => {
+  const [verb] = parseVerbs(JSON.stringify([FAHREN_P])).verbs;
+  assert.equal(answerDisplay(verb, 'du', 'present'), 'fährst');
+  assert.equal(answerDisplay(verb, 'du', 'perfekt'), 'bist gefahren');
+  assert.equal(weakKey('du', 'present'), 'du');
+  assert.equal(weakKey('du', 'perfekt'), 'du:perfekt');
+});
+
+test('綜合練習出題：有過去分詞才出完成式，動詞＋人稱＋時態不重複，不熟優先', () => {
+  const mk = (key, perfekt = null, weak = {}) => ({ key, perfekt, weak });
+  const verbs = [
+    mk('a', { aux: 'sein', partizip: 'gegangen' }, { 'du:perfekt': { weak: true } }),
+    mk('b', { aux: 'haben', partizip: 'gemacht' }),
+    mk('c'),
+  ];
+  for (let run = 0; run < 20; run++) {
+    const combos = pickCombos(verbs, 30); // a、b 各 12，c 6 → 共 30
+    assert.equal(combos.length, 30);
+    assert.equal(new Set(combos.map((x) => `${x.key}:${x.p}:${x.tense}`)).size, 30);
+    assert.ok(!combos.some((x) => x.key === 'c' && x.tense === 'perfekt'));
+    assert.ok(combos.some((x) => x.key === 'a' && x.p === 'du' && x.tense === 'perfekt'));
+  }
+  assert.equal(pickCombos([mk('c')], 30).length, 6);
+});
+
+test('補完成式：提示詞附上目前的過去分詞與現有完成式例句', () => {
+  const [verb] = parseVerbs(JSON.stringify([FAHREN_P])).verbs;
+  const prompt = buildPerfektPrompt([verb]);
+  assert.match(prompt, /目前的過去分詞：sein \/ gefahren/);
+  assert.match(prompt, / {2}- Ich bin gestern nach Berlin gefahren\./);
+  const [plain] = parseVerbs(JSON.stringify([FAHREN])).verbs;
+  assert.match(buildPerfektPrompt([plain]), /（還沒有過去分詞）/);
+});
+
+test('補完成式：設定過去分詞、附上新例句、去重複、跳過不存在的動詞與錯誤例句', () => {
+  const [plain] = parseVerbs(JSON.stringify([FAHREN])).verbs; // 本來沒有 perfekt
+  const raw = JSON.stringify([
+    { v: 'Fahren', aux: 'sein', partizip: 'gefahren', s: [
+      { p: 'ich', de: 'Ich bin nach Berlin gefahren.', zh: '' },
+      { p: 'du', de: 'Du fährst nach Hause.', zh: '' }, // 沒有 bist+gefahren → 跳過
+    ] },
+    { v: 'gehen', aux: 'sein', partizip: 'gegangen', s: [] }, // 不存在的動詞
+  ]);
+  const { updates, skipped } = parsePerfekt(raw, { fahren: plain });
+  assert.equal(updates.length, 1);
+  assert.deepEqual(updates[0].perfekt, { aux: 'sein', partizip: 'gefahren' });
+  assert.deepEqual(updates[0].sentences.map((s) => s.de), ['Ich bin nach Berlin gefahren.']);
+  assert.ok(updates[0].sentences.every((s) => s.tense === 'perfekt'));
+  assert.ok(skipped.some((s) => s.label === 'gehen'));
+  assert.ok(skipped.some((s) => /du 的完成式例句/.test(s.reason)));
+});
+
+test('同步合併：過去分詞取有資料的一方，不熟的現在式與完成式分開記', () => {
+  const [base] = parseVerbs(JSON.stringify([FAHREN_P])).verbs;
+  const a = { ...base, updatedAt: 10, perfekt: null, weak: { du: { weak: true, at: 5 } } };
+  const b = { ...base, updatedAt: 20, weak: { 'du:perfekt': { weak: true, at: 7 } } };
+  const m = mergeVerbs(a, b);
+  assert.deepEqual(m.perfekt, { aux: 'sein', partizip: 'gefahren' });
+  assert.equal(m.weak.du.weak, true);
+  assert.equal(m.weak['du:perfekt'].weak, true);
+  assert.deepEqual(mergeVerbs(b, a), m);
 });

@@ -198,6 +198,25 @@ export function addVerbSentences(updates) {
   return count;
 }
 
+// 補完成式：updates [{ key, perfekt, sentences }]，設定過去分詞並接上完成式例句
+// 回傳 { verbs: 套用的動詞數, sentences: 新增的完成式句數 }
+export function addVerbPerfekt(updates) {
+  const verbs = loadVerbs();
+  let sentences = 0;
+  let applied = 0;
+  for (const { key, perfekt, sentences: list } of updates) {
+    const verb = verbs[key];
+    if (!verb) continue;
+    if (perfekt) verb.perfekt = perfekt;
+    verb.sentences = [...verb.sentences, ...list];
+    verb.updatedAt = Date.now();
+    sentences += list.length;
+    applied += 1;
+  }
+  if (applied) writeVerbs(verbs, 'content');
+  return { verbs: applied, sentences };
+}
+
 // 刪除動詞；回傳被刪除的資料（給「復原」用）
 export function removeVerb(key) {
   const verbs = loadVerbs();
@@ -216,12 +235,13 @@ export function restoreVerb(verb) {
   return writeVerbs(verbs, 'content');
 }
 
-// 練習結果，記在「動詞＋人稱」上：第一次答錯標成不熟，第一次就答對取消不熟
-export function setVerbWeak(key, person, weak) {
+// 練習結果，記在「動詞＋人稱＋時態」上（wkey 由 verbs.js 的 weakKey 算出）：
+// 第一次答錯標成不熟，第一次就答對取消不熟
+export function setVerbWeak(key, wkey, weak) {
   const verbs = loadVerbs();
   const verb = verbs[key];
   if (!verb) return;
-  verb.weak = { ...(verb.weak || {}), [person]: { weak, at: Date.now() } };
+  verb.weak = { ...(verb.weak || {}), [wkey]: { weak, at: Date.now() } };
   writeVerbs(verbs, 'progress');
 }
 

@@ -4,11 +4,11 @@ import { showToast } from './toast.js';
 import { createSwipeGroup } from './swipe.js';
 import { openWordSheet } from './wordSheet.js';
 import {
-  loadSettings, saveSettings, loadVerbs, addVerbs, addVerbSentences, removeVerb, restoreVerb,
+  loadSettings, saveSettings, loadVerbs, addVerbs, addVerbSentences, addVerbPerfekt, removeVerb, restoreVerb,
 } from '../storage.js';
 import {
-  PERSONS, PERSON_LABELS, MIX_SIZES, dedupeInput, makeVerbBatches, buildVerbPrompt, buildMorePrompt, parseVerbs,
-  parseMoreSentences, markStemChange, highlightVerb, hasWeak,
+  PERSONS, PERSON_LABELS, MIX_SIZES, dedupeInput, makeVerbBatches, buildVerbPrompt, buildMorePrompt, buildPerfektPrompt,
+  parseVerbs, parseMoreSentences, parsePerfekt, markStemChange, highlightVerb, auxForm, hasWeak,
 } from '../verbs.js';
 import { ImportError } from '../importer.js';
 import { speakOnce, cancelSpeech } from '../speech.js';
@@ -78,10 +78,16 @@ export function renderVerbs(view, ctx) {
     });
   }
 
-  // 詳細資料：變化表、提示、1 句例句（從所有例句隨機挑一句）
+  // 詳細資料：變化表、過去分詞、提示、1 句例句（從所有例句隨機挑一句）
   function open(verb) {
     speak(verb.v);
     const ex = verb.sentences.length ? verb.sentences[Math.floor(Math.random() * verb.sentences.length)] : null;
+    // 完成式例句要強調助動詞的變化形和過去分詞，現在式則強調變化形
+    const exParts = ex
+      ? (ex.tense === 'perfekt' && verb.perfekt
+        ? highlightVerb(ex.de, auxForm(verb.perfekt.aux, ex.p), verb.perfekt.partizip)
+        : highlightVerb(ex.de, verb.forms[ex.p], verb.prefix))
+      : null;
     closeSheet = openWordSheet({
       word: verb.v,
       grammar: [verb.type, verb.prefix ? '可分動詞' : ''].filter(Boolean).join(' · '),
@@ -91,9 +97,14 @@ export function renderVerbs(view, ctx) {
         h('dl', { class: 'verb-table' },
           PERSONS.flatMap((p) => [h('dt', {}, PERSON_LABELS[p]), h('dd', {}, formNode(verb, p))]),
         ),
+        verb.perfekt
+          ? h('p', { class: 'verb-perfekt' },
+            h('span', { class: 'verb-perfekt-label' }, '完成式'),
+            h('span', { lang: 'de' }, `${verb.perfekt.partizip} · ${verb.perfekt.aux}`))
+          : null,
         verb.tip ? h('p', { class: 'verb-tip' }, verb.tip) : null,
       ),
-      example: ex ? { parts: highlightVerb(ex.de, verb.forms[ex.p], verb.prefix), zh: ex.zh } : null,
+      example: ex ? { parts: exParts, zh: ex.zh } : null,
       onClose: () => { closeSheet = null; },
     });
   }
@@ -189,7 +200,8 @@ function openMixSheet(verbs, ctx) {
   function update() {
     allBox.checked = keys.size === verbs.length;
     for (const b of sizeButtons) b.setAttribute('aria-checked', String(Number(b.dataset.size) === size));
-    const combos = keys.size * PERSONS.length;
+    // 有過去分詞的動詞同時出現在式和完成式（12），其餘只有現在式（6）
+    const combos = [...keys].reduce((n, k) => n + (verbs.find((v) => v.key === k)?.perfekt ? PERSONS.length * 2 : PERSONS.length), 0);
     countEl.textContent = keys.size ? `總練習 ${Math.min(size, combos)} 題` : '請至少勾選一個動詞';
     startBtn.disabled = !keys.size;
   }
@@ -228,13 +240,15 @@ function openMixSheet(verbs, ctx) {
   return close;
 }
 
-// 新增頁：上方分頁「新增動詞」「增加例句」（#/verbs/new、#/verbs/more）
-// 兩個分頁都是：準備指令 → 複製 → 貼回 AI 的回覆 → 匯入
+// 新增頁：上方分頁「新增動詞」「增加例句」「補完成式」（#/verbs/new、#/verbs/more、#/verbs/perfekt）
+// 三個分頁都是：準備指令 → 複製 → 貼回 AI 的回覆 → 匯入
+const TAB_TITLES = { new: '新增動詞', more: '增加例句', perfekt: '補完成式' };
+
 export function renderNewVerbs(view, ctx, mode = 'new') {
-  ctx.setBar(mode === 'more' ? '增加例句' : '新增動詞', '#/verbs');
+  ctx.setBar(TAB_TITLES[mode] || TAB_TITLES.new, '#/verbs');
 
   const tabs = h('div', { class: 'speed-group verb-tabs', role: 'tablist' },
-    [['new', '新增動詞'], ['more', '增加例句']].map(([value, label]) => h('a', {
+    [['new', '新增動詞'], ['more', '增加例句'], ['perfekt', '補完成式']].map(([value, label]) => h('a', {
       class: 'speed', role: 'tab', href: `#/verbs/${value}`, 'aria-selected': String(value === mode),
       'aria-checked': String(value === mode),
     }, label)));
@@ -276,8 +290,16 @@ export function renderNewVerbs(view, ctx, mode = 'new') {
   // ---------- 1. 準備指令 ----------
   let refresh;
   let step1;
-  if (mode === 'more') {
-    // 勾選要增加例句的動詞
+  if (mode === 'more' || mode === 'perfekt') {
+    // 勾選動詞：「增加例句」加現在式例句，「補完成式」補過去分詞和完成式例句
+    const promptOf = mode === 'perfekt' ? buildPerfektPrompt : buildMorePrompt;
+    const emptyText = mode === 'perfekt' ? '先勾選要補完成式的動詞' : '先勾選要增加例句的動詞';
+    const hint = mode === 'perfekt'
+      ? '補上過去分詞和助動詞（haben/sein），每個人稱再加 2 句完成式例句。沒有過去分詞的動詞標示「新」。每 10 個動詞一批，每一批都要做一次。'
+      : '每個人稱各再加 2 句新的現在式例句，指令會附上現有的例句，避免重複。每 10 個動詞一批，每一批都要做一次。';
+    const labelOf = (v) => (mode === 'perfekt'
+      ? `${v.v}${v.perfekt ? '' : '（新）'}`
+      : `${v.v}（${v.sentences.length} 句）`);
     const verbs = Object.values(loadVerbs()).sort((a, b) => a.v.localeCompare(b.v));
     const selected = new Set();
     const allBox = h('input', { type: 'checkbox' });
@@ -288,7 +310,7 @@ export function renderNewVerbs(view, ctx, mode = 'new') {
         else selected.delete(v.key);
         refresh();
       });
-      return h('label', { class: 'check' }, box, h('span', { lang: 'de' }, `${v.v}（${v.sentences.length} 句）`));
+      return h('label', { class: 'check' }, box, h('span', { lang: 'de' }, labelOf(v)));
     });
     allBox.addEventListener('change', () => {
       for (const label of boxes) {
@@ -304,11 +326,11 @@ export function renderNewVerbs(view, ctx, mode = 'new') {
       allBox.checked = verbs.length > 0 && selected.size === verbs.length;
       // 重新讀取：匯入後提示詞要附上最新的例句
       const list = verbs.filter((v) => selected.has(v.key)).map((v) => current[v.key]).filter(Boolean);
-      showBatches(makeVerbBatches(list), (b) => b.map((v) => v.v).join('、'), buildMorePrompt, '先勾選要增加例句的動詞');
+      showBatches(makeVerbBatches(list), (b) => b.map((v) => v.v).join('、'), promptOf, emptyText);
     };
     step1 = h('section', { class: 'settings-section stack' },
       h('h2', { class: 'card-title' }, '1. 勾選動詞並複製指令'),
-      h('p', { class: 'hint' }, '每個人稱各再加 2 句新的例句，指令會附上現有的例句，避免重複。每 10 個動詞一批，每一批都要做一次。'),
+      h('p', { class: 'hint' }, hint),
       verbs.length
         ? [h('label', { class: 'check check-all' }, allBox, h('span', {}, `全部（${verbs.length}）`)), h('div', { class: 'check-grid' }, boxes)]
         : h('p', { class: 'muted' }, '還沒有動詞，先到「新增動詞」加入。'),
@@ -377,7 +399,13 @@ export function renderNewVerbs(view, ctx, mode = 'new') {
       let message;
       let changed;
       let skipped;
-      if (mode === 'more') {
+      if (mode === 'perfekt') {
+        const parsed = parsePerfekt(responseInput.value, loadVerbs());
+        skipped = parsed.skipped;
+        const { verbs: applied, sentences } = addVerbPerfekt(parsed.updates);
+        changed = applied > 0;
+        message = changed ? `已為 ${applied} 個動詞補上完成式，新增 ${sentences} 句例句` : '沒有可以補的完成式。';
+      } else if (mode === 'more') {
         const parsed = parseMoreSentences(responseInput.value, loadVerbs());
         skipped = parsed.skipped;
         const count = addVerbSentences(parsed.updates);

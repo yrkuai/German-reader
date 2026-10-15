@@ -10,6 +10,20 @@ export const PERSON_LABELS = { ich: 'ich', du: 'du', er: 'er/sie/es', wir: 'wir'
 export const VERB_TYPES = ['規則', '換母音', '不規則'];
 export const VERB_BATCH_SIZE = 10;
 
+// 練習的時態：present 現在式、perfekt 現在完成式（haben/sein + 過去分詞）
+export const TENSES = ['present', 'perfekt'];
+export const TENSE_LABELS = { present: '現在式', perfekt: '完成式' };
+const AUX = ['haben', 'sein'];
+// 助動詞 haben / sein 的現在式人稱變化（完成式題目裡要填的就是這個）
+const AUX_FORMS = {
+  haben: { ich: 'habe', du: 'hast', er: 'hat', wir: 'haben', ihr: 'habt', sie: 'haben' },
+  sein: { ich: 'bin', du: 'bist', er: 'ist', wir: 'sind', ihr: 'seid', sie: 'sind' },
+};
+export const auxForm = (aux, p) => AUX_FORMS[aux]?.[p] || '';
+
+// 「不熟」記在「人稱＋時態」上：現在式沿用舊的 key（只有人稱），完成式加後綴
+export const weakKey = (p, tense) => (tense === 'perfekt' ? `${p}:perfekt` : p);
+
 // 每個人稱可以當主詞的字（題目裡加粗，提醒看主詞決定變化形）
 const SUBJECTS = { ich: ['ich'], du: ['du'], er: ['er', 'sie', 'es', 'man'], wir: ['wir'], ihr: ['ihr'], sie: ['sie'] };
 
@@ -27,6 +41,17 @@ export const verbKey = (v) => v.trim().toLowerCase();
 export function formDisplay(verb, p) {
   const form = verb.forms[p];
   return verb.prefix ? `${form} … ${verb.prefix}` : form;
+}
+
+// 完成式顯示成「bin … gefahren」（助動詞依人稱變化 + 過去分詞）
+export function perfektDisplay(verb, p) {
+  return verb.perfekt ? `${auxForm(verb.perfekt.aux, p)} … ${verb.perfekt.partizip}` : '';
+}
+
+// 一題的正確答案（給作答後顯示用）：現在式用變化形，完成式用「助動詞 過去分詞」（不加 …，才唸得順）
+export function answerDisplay(verb, p, tense = 'present') {
+  if (tense === 'perfekt' && verb.perfekt) return `${auxForm(verb.perfekt.aux, p)} ${verb.perfekt.partizip}`;
+  return formDisplay(verb, p);
 }
 
 // ---------- 新增動詞：整理輸入 ----------
@@ -53,7 +78,7 @@ export function makeVerbBatches(verbs, size = VERB_BATCH_SIZE) {
 }
 
 export function buildVerbPrompt(verbs) {
-  return `你是德語老師。我是剛開始學德語的學生，母語是繁體中文，還沒學過時態，現在只學「現在式」。
+  return `你是德語老師。我是剛開始學德語的學生，母語是繁體中文。我正在學「現在式」和「現在完成式（Perfekt）」——也就是德國人口語裡講過去的說法（haben/sein + 過去分詞）。
 
 請為下面每個動詞提供：
 1. "v"：不定式（照我給的拼法）
@@ -64,21 +89,28 @@ export function buildVerbPrompt(verbs) {
 6. "forms"：現在式六個人稱的變化形，key 用 ich、du、er、wir、ihr、sie
    - er 代表 er/sie/es，sie 代表 sie/Sie
    - 可分動詞只寫變化的那一部分，不要寫前綴（aufstehen 的 ich 寫 "stehe"）
-7. "s"：例句，每個人稱各 2 句
+7. "aux"：現在完成式用的助動詞，"haben" 或 "sein" 二選一（移動或狀態改變的動詞用 sein，例如 fahren、gehen、aufstehen）
+8. "partizip"：過去分詞（Partizip II）
+   - 弱變化通常是 ge...t（machen → gemacht），強變化常是 ge...en 並換母音（fahren → gefahren）
+   - 不可分前綴（be-、ver-、er-、ent-…）和 -ieren 結尾的動詞沒有 ge-（verstehen → verstanden，studieren → studiert）
+   - 可分動詞的 ge 夾在中間，寫成一個字（aufstehen → aufgestanden）
+9. "s"：例句。每個人稱（ich、du、er、wir、ihr、sie）給 2 句現在式 + 1 句現在完成式
    - "p"：人稱（ich、du、er、wir、ihr、sie）
+   - "tense"：時態，"present"（現在式）或 "perfekt"（現在完成式）
    - "de"：德文母語者日常真的會說的口語句子，不要課本式的造句
      - 長短不限，難度靠字彙控制：用常見的字，一句裡不常見的字最多一兩個
-     - 同一個人稱的 2 句：1 句是簡短的口語反應或問句，1 句是比較完整的日常句子
      - 情境要分散，輪流用：朋友聊天、家裡、工作、餐廳或購物、傳訊息
      - 可以自然地用語氣詞（doch、mal、ja、halt、eben…）
      - 動詞要寫完整的標準形，不要縮寫（寫 habe 不寫 hab，寫 gibt es 不寫 gibt's）
      - 一定要寫出主詞，不要省略
+     - 現在式："present" 的句子用現在式的變化形
+     - 完成式："perfekt" 的句子要同時出現助動詞的人稱變化形（bin/bist/ist… 或 habe/hast/hat…）和過去分詞；可分動詞的過去分詞是連在一起的一個字（aufgestanden），不要拆開
    - "zh"：自然口語的繁體中文翻譯（台灣用語），不要逐字翻
-   - 句子裡必須用到這個人稱的變化形，而且是這個動詞本身在變化（不要寫成 muss/will + 不定式）；er 可以用 er、sie、es 或名字當主詞，sie 可以用 sie（他們）或 Sie（您）
-   - 可分動詞的前綴要照德文語序放在句尾；不要把可分動詞放在 weil、dass 等子句裡（前綴會黏回去）
+   - 句子裡必須是這個動詞本身在變化（不要寫成 muss/will + 不定式）；er 可以用 er、sie、es 或名字當主詞，sie 可以用 sie（他們）或 Sie（您）
+   - 可分動詞（現在式）的前綴要照德文語序放在句尾；不要把可分動詞放在 weil、dass 等子句裡（前綴會黏回去）
 
 規則：
-- 只用現在式，不要用其他時態
+- 只用現在式和現在完成式（Perfekt），不要用其他時態（不要用 Präteritum 過去式）
 - 只回傳 JSON 陣列，不要任何其他文字，不要用 Markdown
 
 格式範例：
@@ -90,9 +122,14 @@ export function buildVerbPrompt(verbs) {
     "tip": "du 和 er/sie/es 的 a 變成 ä",
     "prefix": null,
     "forms": { "ich": "fahre", "du": "fährst", "er": "fährt", "wir": "fahren", "ihr": "fahrt", "sie": "fahren" },
+    "aux": "sein",
+    "partizip": "gefahren",
     "s": [
-      { "p": "ich", "de": "Ich fahre schnell zum Supermarkt.", "zh": "我去一下超市。" },
-      { "p": "du", "de": "Fährst du mich kurz zum Bahnhof?", "zh": "你可以載我去一下車站嗎？" }
+      { "p": "ich", "tense": "present", "de": "Ich fahre schnell zum Supermarkt.", "zh": "我去一下超市。" },
+      { "p": "ich", "tense": "present", "de": "Ich fahre morgen zu meiner Schwester.", "zh": "我明天去我姐姐那邊。" },
+      { "p": "ich", "tense": "perfekt", "de": "Ich bin gestern nach Berlin gefahren.", "zh": "我昨天去了柏林。" },
+      { "p": "du", "tense": "present", "de": "Fährst du mich kurz zum Bahnhof?", "zh": "你可以載我去一下車站嗎？" },
+      { "p": "du", "tense": "perfekt", "de": "Bist du mit dem Zug gefahren?", "zh": "你是搭火車去的嗎？" }
     ]
   },
   {
@@ -102,8 +139,11 @@ export function buildVerbPrompt(verbs) {
     "tip": "可分動詞：stehen 變化，auf 放在句尾",
     "prefix": "auf",
     "forms": { "ich": "stehe", "du": "stehst", "er": "steht", "wir": "stehen", "ihr": "steht", "sie": "stehen" },
+    "aux": "sein",
+    "partizip": "aufgestanden",
     "s": [
-      { "p": "ich", "de": "Morgen stehe ich mal nicht so früh auf.", "zh": "明天我不要那麼早起了。" }
+      { "p": "ich", "tense": "present", "de": "Morgen stehe ich mal nicht so früh auf.", "zh": "明天我不要那麼早起了。" },
+      { "p": "ich", "tense": "perfekt", "de": "Ich bin heute viel zu spät aufgestanden.", "zh": "我今天太晚起床了。" }
     ]
   }
 ]
@@ -132,27 +172,50 @@ export function sentenceHasForm(de, form, prefix) {
   return !!locate(tokenize(de), form, prefix);
 }
 
+// 完成式句子要同時出現助動詞的人稱變化形和過去分詞（partizip 緊接在助動詞之後，和可分動詞前綴同一套邏輯）
+export function sentenceHasPerfekt(de, perfekt, p) {
+  return !!perfekt && !!locate(tokenize(de), auxForm(perfekt.aux, p), perfekt.partizip);
+}
+
 const sameSentence = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
-// 解析一個動詞的例句；不合格的列進 skipped
-function parseSentences(list, verb, skipped, existing = []) {
+// 解析一個動詞的例句；不合格的列進 skipped。
+// defaultTense：沒有指定時沿用例句自己的 tense 欄位（新增動詞用），指定時一律當那個時態（增加例句、補完成式用）
+function parseSentences(list, verb, skipped, existing = [], defaultTense = null) {
   const result = [];
   for (const s of Array.isArray(list) ? list : []) {
     const p = clean(s?.p).toLowerCase();
     const de = clean(s?.de);
+    const tense = defaultTense || (clean(s?.tense).toLowerCase() === 'perfekt' ? 'perfekt' : 'present');
     if (!PERSONS.includes(p)) {
       skipped.push({ label: verb.v, reason: `有一句例句的人稱不正確（${clean(s?.p) || '沒有人稱'}）` });
       continue;
     }
     if (!de) continue;
-    if (!sentenceHasForm(de, verb.forms[p], verb.prefix)) {
+    if (tense === 'perfekt') {
+      if (!verb.perfekt) {
+        skipped.push({ label: verb.v, reason: `${PERSON_LABELS[p]} 有完成式例句，但這個動詞沒有過去分詞資料` });
+        continue;
+      }
+      if (!sentenceHasPerfekt(de, verb.perfekt, p)) {
+        skipped.push({ label: verb.v, reason: `${PERSON_LABELS[p]} 的完成式例句「${de}」沒有出現 ${perfektDisplay(verb, p)}` });
+        continue;
+      }
+    } else if (!sentenceHasForm(de, verb.forms[p], verb.prefix)) {
       skipped.push({ label: verb.v, reason: `${PERSON_LABELS[p]} 的例句「${de}」沒有出現 ${formDisplay(verb, p)}` });
       continue;
     }
     if ([...existing, ...result].some((x) => sameSentence(x.de, de))) continue;
-    result.push({ p, de, zh: clean(s?.zh) || null });
+    result.push({ p, de, zh: clean(s?.zh) || null, tense });
   }
   return result;
+}
+
+// 解析 aux、partizip；合格回傳 { aux, partizip }，否則 null
+function parsePerfektForm(item) {
+  const aux = clean(item?.aux).toLowerCase();
+  const partizip = clean(item?.partizip);
+  return AUX.includes(aux) && LETTERS.test(partizip) ? { aux, partizip } : null;
 }
 
 // 解析「新增動詞」的回覆。已經存在的動詞直接略過（不列進 skipped）
@@ -193,6 +256,7 @@ export function parseVerbs(raw, existingKeys = new Set(), now = Date.now()) {
       tip: clean(item?.tip),
       prefix: LETTERS.test(prefix) ? prefix : null,
       tense: 'present',
+      perfekt: parsePerfektForm(item),
       forms,
       sentences: [],
       weak: {},
@@ -246,6 +310,21 @@ export function pronounCloze(verb, p) {
   };
 }
 
+// 完成式例句挖空：助動詞的人稱變化形 + 過去分詞各一格（沿用可分動詞的兩格挖空）
+export function perfektCloze(de, verb, p) {
+  return verb.perfekt ? makeVerbCloze(de, auxForm(verb.perfekt.aux, p), verb.perfekt.partizip, p) : null;
+}
+
+// 完成式沒有例句的人稱：題目「du ___ ___」，答案是助動詞變化形 + 過去分詞
+export function pronounClozePerfekt(verb, p) {
+  return {
+    segments: [{ text: `${PERSON_LABELS[p]} ` }, { blank: 0 }, { text: ' ' }, { blank: 1 }],
+    answers: [auxForm(verb.perfekt.aux, p), verb.perfekt.partizip],
+    sentenceStart: false,
+    subject: 0,
+  };
+}
+
 // 比對答案。inputs：每個空格的輸入；可分動詞在第一格打「stehe auf」也算對
 // 回傳 'ok' | 'case'（只有大小寫錯）| 'wrong'
 export function checkVerbAnswer(inputs, cloze) {
@@ -286,31 +365,44 @@ export function markStemChange(verb, p) {
 
 // ---------- 同步合併 ----------
 
-const sentenceSort = (a, b) => (a.de.toLowerCase() < b.de.toLowerCase() ? -1 : a.de.toLowerCase() > b.de.toLowerCase() ? 1 : 0);
+const tenseOf = (s) => s.tense || 'present';
+const sentenceSort = (a, b) => {
+  const da = a.de.toLowerCase();
+  const db = b.de.toLowerCase();
+  if (da !== db) return da < db ? -1 : 1;
+  return tenseOf(a) < tenseOf(b) ? -1 : tenseOf(a) > tenseOf(b) ? 1 : 0;
+};
 
-// 排好順序，兩邊相同的資料轉成字串後會一模一樣
+// 排好順序，兩邊相同的資料轉成字串後會一模一樣（舊資料沒有 tense、perfekt，一律補成預設值）
 export function normalizeVerb(v) {
-  return { ...v, sentences: [...(v.sentences || [])].sort(sentenceSort), weak: { ...(v.weak || {}) } };
+  return {
+    ...v,
+    perfekt: v.perfekt || null,
+    sentences: [...(v.sentences || [])].map((s) => ({ ...s, tense: tenseOf(s) })).sort(sentenceSort),
+    weak: { ...(v.weak || {}) },
+  };
 }
 
-// 同一個動詞兩邊都有時合併：例句取聯集；變化形等內容取 updatedAt 較新的；不熟每個人稱各取較新的
+// 同一個動詞兩邊都有時合併：例句取聯集；變化形、過去分詞等內容取 updatedAt 較新的；不熟每個「人稱＋時態」各取較新的
 export function mergeVerbs(a, b) {
   if (!a) return normalizeVerb(b);
   if (!b) return normalizeVerb(a);
   const newer = (b.updatedAt || 0) > (a.updatedAt || 0) ? b : a;
+  const older = newer === a ? b : a;
   const sentences = [];
   for (const s of [...(a.sentences || []), ...(b.sentences || [])]) {
     if (!sentences.some((x) => sameSentence(x.de, s.de))) sentences.push(s);
   }
   const weak = {};
-  for (const p of PERSONS) {
-    const x = a.weak?.[p];
-    const y = b.weak?.[p];
+  for (const k of new Set([...Object.keys(a.weak || {}), ...Object.keys(b.weak || {})])) {
+    const x = a.weak?.[k];
+    const y = b.weak?.[k];
     const pick = !x ? y : !y ? x : (y.at || 0) > (x.at || 0) ? y : x;
-    if (pick) weak[p] = pick;
+    if (pick) weak[k] = pick;
   }
   return normalizeVerb({
     ...newer,
+    perfekt: newer.perfekt || older.perfekt || null,
     sentences,
     weak,
     createdAt: Math.min(a.createdAt || Infinity, b.createdAt || Infinity),
@@ -318,7 +410,7 @@ export function mergeVerbs(a, b) {
   });
 }
 
-export const hasWeak = (verb) => PERSONS.some((p) => verb.weak?.[p]?.weak);
+export const hasWeak = (verb) => Object.values(verb.weak || {}).some((w) => w?.weak);
 
 // ---------- 增加例句 ----------
 
@@ -376,6 +468,79 @@ export function parseMoreSentences(raw, verbs) {
   return { updates, skipped };
 }
 
+// ---------- 補完成式（過去分詞、助動詞、完成式例句） ----------
+
+export function buildPerfektPrompt(verbs) {
+  const blocks = verbs.map((v) => {
+    const perfekt = v.sentences.filter((s) => tenseOf(s) === 'perfekt');
+    return [
+      `${v.v}（${[v.zh, v.prefix ? '可分動詞' : ''].filter(Boolean).join('、')}）`,
+      v.perfekt ? `  目前的過去分詞：${v.perfekt.aux} / ${v.perfekt.partizip}` : '  （還沒有過去分詞）',
+      ...(perfekt.length ? perfekt.map((s) => `  - ${s.de}`) : ['  （目前沒有完成式例句）']),
+    ].join('\n');
+  });
+  return `你是德語老師。我是剛開始學德語的學生，母語是繁體中文，正在學「現在完成式（Perfekt）」——德國人口語裡講過去的說法（haben/sein + 過去分詞）。
+
+請為下面每個動詞提供現在完成式的資料：
+1. "v"：不定式（照我給的拼法）
+2. "aux"：助動詞 "haben" 或 "sein" 二選一（移動或狀態改變的動詞用 sein）
+3. "partizip"：過去分詞（Partizip II）
+   - 不可分前綴和 -ieren 動詞沒有 ge-（verstanden、studiert）；可分動詞的 ge 夾在中間寫成一個字（aufgestanden）
+4. "s"：完成式例句，每個人稱（ich、du、er、wir、ihr、sie）各 2 句
+   - "p"：人稱
+   - "de"：德文母語者日常真的會說的口語句子，不要課本式的造句；長短不限、用常見字、情境分散
+     - 一定要同時出現助動詞的人稱變化形（bin/bist/ist… 或 habe/hast/hat…）和過去分詞；一定要寫出主詞
+     - 可分動詞的過去分詞是連在一起的一個字（aufgestanden），不要拆開
+   - "zh"：自然口語的繁體中文翻譯（台灣用語），不要逐字翻
+   - 不可以和「目前的例句」重複，也不要只換一個字
+
+規則：
+- 只用現在完成式（Perfekt），不要用其他時態
+- 只回傳 JSON 陣列，不要任何其他文字，不要用 Markdown
+
+格式：
+[
+  { "v": "fahren", "aux": "sein", "partizip": "gefahren", "s": [ { "p": "ich", "de": "Ich bin gestern nach Berlin gefahren.", "zh": "我昨天去了柏林。" } ] }
+]
+
+動詞與目前的完成式例句：
+${blocks.join('\n\n')}`;
+}
+
+// 解析「補完成式」的回覆：只接受已經建立的動詞；設定 aux/partizip，並附上新的完成式例句（和現有的去重複）
+// 回傳 { updates: [{ key, perfekt, sentences }], skipped }
+export function parsePerfekt(raw, verbs) {
+  const arr = extractArray(raw);
+  const updates = [];
+  const skipped = [];
+  for (const item of arr) {
+    const v = clean(item?.v);
+    const verb = v ? verbs[verbKey(v)] : null;
+    if (!verb) {
+      skipped.push({ label: v || '（沒有動詞）', reason: '不是已經建立的動詞' });
+      continue;
+    }
+    const perfekt = parsePerfektForm(item) || verb.perfekt || null;
+    if (!perfekt) {
+      skipped.push({ label: verb.v, reason: '缺少助動詞（haben/sein）或過去分詞' });
+      continue;
+    }
+    let update = updates.find((u) => u.key === verb.key);
+    if (!update) {
+      update = { key: verb.key, perfekt, sentences: [] };
+      updates.push(update);
+    } else {
+      update.perfekt = perfekt;
+    }
+    const existing = [...verb.sentences, ...update.sentences];
+    update.sentences.push(...parseSentences(item?.s, { ...verb, perfekt }, skipped, existing, 'perfekt'));
+  }
+  // 沒有新句子、而且過去分詞和原本相同的，沒有任何變更，拿掉
+  const changed = (u) => u.sentences.length || !verbs[u.key].perfekt
+    || verbs[u.key].perfekt.aux !== u.perfekt.aux || verbs[u.key].perfekt.partizip !== u.perfekt.partizip;
+  return { updates: updates.filter(changed), skipped };
+}
+
 // ---------- 總練習 ----------
 
 export const MIX_SIZES = [10, 20, 30];
@@ -389,18 +554,21 @@ function shuffle(list, random) {
   return a;
 }
 
-// 從勾選的動詞出題：「動詞＋人稱」不重複；不熟的優先；其餘依人稱輪流抽，讓六個人稱平均
-// 回傳 [{ key, p }]，最多 n 題（組合不足時全部出）
+// 從勾選的動詞出題：「動詞＋人稱＋時態」不重複；不熟的優先；其餘依人稱輪流抽，讓六個人稱平均。
+// 有過去分詞的動詞才出完成式題；回傳 [{ key, p, tense }]，最多 n 題（組合不足時全部出）
 export function pickCombos(verbs, n, random = Math.random) {
-  const all = verbs.flatMap((v) => PERSONS.map((p) => ({ key: v.key, p, weak: !!v.weak?.[p]?.weak })));
+  const all = verbs.flatMap((v) => {
+    const tenses = v.perfekt ? TENSES : ['present'];
+    return tenses.flatMap((tense) => PERSONS.map((p) => ({ key: v.key, p, tense, weak: !!v.weak?.[weakKey(p, tense)]?.weak })));
+  });
   const picked = shuffle(all.filter((c) => c.weak), random).slice(0, n);
   const byPerson = new Map(PERSONS.map((p) => [p, shuffle(all.filter((c) => !c.weak && c.p === p), random)]));
   const order = shuffle(PERSONS, random);
   while (picked.length < n && [...byPerson.values()].some((list) => list.length)) {
-    // 依人稱輪流抽；先抽目前題數最少的人稱
+    // 依人稱輪流抽；先抽目前題數最少的人稱（兩個時態都算在同一個人稱裡）
     const counts = Object.fromEntries(PERSONS.map((p) => [p, picked.filter((c) => c.p === p).length]));
     const p = order.filter((x) => byPerson.get(x).length).sort((a, b) => counts[a] - counts[b])[0];
     picked.push(byPerson.get(p).shift());
   }
-  return shuffle(picked, random).map(({ key, p }) => ({ key, p }));
+  return shuffle(picked, random).map(({ key, p, tense }) => ({ key, p, tense }));
 }

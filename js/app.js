@@ -56,7 +56,7 @@ const ctx = {
 
 // 路由：#/ 文章列表、#/new 新增文章、#/read/<id> 閱讀、#/translate/<id> 取得翻譯、#/settings 設定、
 // #/pair/<配對碼> 掃 QR code 設定同步、#/words 單字本、#/review/flash 閃卡（/extra 額外練習）、#/review/cloze 例句填空、
-// #/verbs 動詞、#/verbs/new 新增動詞、#/verbs/more 增加例句、#/verbs/practice/<key> 單一動詞練習、#/verbs/mix 總練習
+// #/verbs 動詞、#/verbs/new 新增動詞、#/verbs/more 增加例句、#/verbs/perfekt 補完成式、#/verbs/practice/<key> 單一動詞練習、#/verbs/mix 總練習
 function route() {
   const hash = location.hash || '#/';
   if (currentHash && currentHash !== hash && !currentHash.startsWith('#/settings')) previousHash = currentHash;
@@ -78,6 +78,7 @@ function route() {
   else if (parts[0] === 'review' && parts[1] === 'cloze') cleanup = renderCloze(view, ctx);
   else if (parts[0] === 'verbs' && parts[1] === 'new') cleanup = renderNewVerbs(view, ctx, 'new');
   else if (parts[0] === 'verbs' && parts[1] === 'more') cleanup = renderNewVerbs(view, ctx, 'more');
+  else if (parts[0] === 'verbs' && parts[1] === 'perfekt') cleanup = renderNewVerbs(view, ctx, 'perfekt');
   else if (parts[0] === 'verbs' && parts[1] === 'mix') cleanup = renderVerbMix(view, ctx);
   else if (parts[0] === 'verbs' && parts[1] === 'practice' && parts[2]) cleanup = renderVerbPractice(view, decodeURIComponent(parts[2]), ctx);
   else if (parts[0] === 'verbs') cleanup = renderVerbs(view, ctx);

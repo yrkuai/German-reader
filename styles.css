@@ -900,6 +900,8 @@ select.input { appearance: auto; }
 .verb-table { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; font-size: 17px; }
 .verb-table dt { color: var(--ink-muted); }
 .verb-table dd { margin: 0; font-weight: 500; }
+.verb-perfekt { display: flex; align-items: baseline; gap: 10px; margin: 12px 0 0; font-size: 17px; font-weight: 500; }
+.verb-perfekt-label { flex: none; color: var(--ink-muted); font-size: 13px; font-weight: 400; }
 .verb-tip { margin: 10px 0 0; color: var(--ink-muted); font-size: 14px; line-height: 1.5; }
 .verb-hint { display: flex; flex-direction: column; gap: 4px; }
 .verb-hint:empty { display: none; }

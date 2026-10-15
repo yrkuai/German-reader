@@ -2,30 +2,38 @@ import { h } from './dom.js';
 import { icon } from './icons.js';
 import { showSummary, translateToggle } from './review.js';
 import { loadSettings, loadVerbs, setVerbWeak } from '../storage.js';
-import { PERSONS, PERSON_LABELS, makeVerbCloze, pronounCloze, checkVerbAnswer, formDisplay, pickCombos } from '../verbs.js';
+import {
+  PERSONS, PERSON_LABELS, TENSES, TENSE_LABELS, makeVerbCloze, pronounCloze, perfektCloze, pronounClozePerfekt,
+  checkVerbAnswer, answerDisplay, auxForm, weakKey, pickCombos,
+} from '../verbs.js';
 import { pickSession, createRound } from '../vocab.js';
 import { speakOnce, cancelSpeech } from '../speech.js';
 import { keepAboveKeyboard } from './keyboard.js';
 
-// 一題：某個動詞的某個人稱。variants 是可以出題的例句（順序隨機），答錯再問時換下一句
-function makeItem(verb, p) {
-  const variants = pickSession(verb.sentences.filter((s) => s.p === p), Infinity).flatMap((s) => {
-    const cloze = makeVerbCloze(s.de, verb.forms[p], verb.prefix, p);
+// 一題：某個動詞的某個人稱的某個時態。variants 是可以出題的例句（順序隨機），答錯再問時換下一句
+function makeItem(verb, p, tense = 'present') {
+  const sentences = verb.sentences.filter((s) => s.p === p && (s.tense || 'present') === tense);
+  const variants = pickSession(sentences, Infinity).flatMap((s) => {
+    const cloze = tense === 'perfekt' ? perfektCloze(s.de, verb, p) : makeVerbCloze(s.de, verb.forms[p], verb.prefix, p);
     return cloze ? [{ de: s.de, zh: s.zh, cloze }] : [];
   });
   // 沒有例句的人稱：題目只有主詞
-  if (!variants.length) variants.push({ de: null, zh: null, cloze: pronounCloze(verb, p) });
-  return { verb, p, variants, tries: 0 };
+  if (!variants.length) {
+    variants.push({ de: null, zh: null, cloze: tense === 'perfekt' ? pronounClozePerfekt(verb, p) : pronounCloze(verb, p) });
+  }
+  return { verb, p, tense, variants, tries: 0 };
 }
 
-// 單一動詞練習：六個人稱打亂順序，一次一題
+// 單一動詞練習：六個人稱（有過去分詞的話，現在式和完成式都練）打亂順序，一次一題
 export function renderVerbPractice(view, key, ctx) {
   const verb = loadVerbs()[key];
   if (!verb) {
     ctx.navigate('#/verbs');
     return;
   }
-  const items = pickSession(PERSONS, Infinity).map((p) => makeItem(verb, p));
+  const tenses = verb.perfekt ? TENSES : ['present'];
+  const combos = tenses.flatMap((t) => PERSONS.map((p) => ({ p, tense: t })));
+  const items = pickSession(combos, Infinity).map(({ p, tense }) => makeItem(verb, p, tense));
   return runPractice(view, ctx, {
     title: verb.v,
     items,
@@ -33,7 +41,7 @@ export function renderVerbPractice(view, key, ctx) {
   });
 }
 
-// 總練習：勾選的動詞混在一起，「動詞＋人稱」不重複，不熟的優先
+// 總練習：勾選的動詞混在一起，「動詞＋人稱＋時態」不重複，不熟的優先
 export function renderVerbMix(view, ctx) {
   const verbs = loadVerbs();
   const mix = { all: true, keys: [], size: 20, ...loadSettings().verbMix };
@@ -42,7 +50,7 @@ export function renderVerbMix(view, ctx) {
     ctx.navigate('#/verbs');
     return;
   }
-  const items = pickCombos(chosen, mix.size).map(({ key, p }) => makeItem(verbs[key], p));
+  const items = pickCombos(chosen, mix.size).map(({ key, p, tense }) => makeItem(verbs[key], p, tense));
   return runPractice(view, ctx, { title: '總練習', items, againHash: '#/verbs/mix' });
 }
 
@@ -133,7 +141,7 @@ function runPractice(view, ctx, { title, items, againHash }) {
     sentenceEl.dataset.verb = item.verb.key;
     sentenceEl.dataset.person = item.p;
     renderSentence(null);
-    sentenceEl.append(h('span', { class: 'hint verb-inf' }, `（${item.verb.v}）`));
+    sentenceEl.append(h('span', { class: 'hint verb-inf' }, `（${item.verb.v} · ${TENSE_LABELS[item.tense]}）`));
     zhEl.textContent = q.zh || '';
     zhToggle.disabled = !q.zh;
     applyZh();
@@ -157,16 +165,16 @@ function runPractice(view, ctx, { title, items, againHash }) {
     const result = checkVerbAnswer(inputs.map((i) => i.value), q.cloze);
     const ok = result === 'ok';
     answered = true;
-    // 只用第一次的作答標記不熟；答錯的放回這一輪最後面，下次換一句例句
-    if (round.answer(ok)) setVerbWeak(item.verb.key, item.p, !ok);
+    // 只用第一次的作答標記不熟（現在式和完成式分開記）；答錯的放回這一輪最後面，下次換一句例句
+    if (round.answer(ok)) setVerbWeak(item.verb.key, weakKey(item.p, item.tense), !ok);
     if (!ok) item.tries++;
     renderSentence(q.cloze.answers.map(() => (ok ? 'ok' : 'wrong')));
-    sentenceEl.append(h('span', { class: 'hint verb-inf' }, `（${item.verb.v}）`));
+    sentenceEl.append(h('span', { class: 'hint verb-inf' }, `（${item.verb.v} · ${TENSE_LABELS[item.tense]}）`));
     feedback.replaceChildren(ok
       ? h('p', { class: 'ok' }, '✓ 答對了')
       : h('div', { class: 'stack verb-wrong' },
         h('p', { class: 'error' }, result === 'case' ? '大小寫不對。' : '答錯了。', '正確答案：',
-          h('b', { lang: 'de' }, formDisplay(item.verb, item.p))),
+          h('b', { lang: 'de' }, answerDisplay(item.verb, item.p, item.tense))),
         item.verb.tip ? h('p', { class: 'verb-tip' }, item.verb.tip) : null,
       ));
     for (const input of inputs) input.disabled = true;
@@ -181,7 +189,7 @@ function runPractice(view, ctx, { title, items, againHash }) {
     if (!round.done) draw();
     else {
       showSummary(body, ctx, round, againHash, {
-        labelOf: (m) => `${m.verb.v} · ${PERSON_LABELS[m.p]} → ${formDisplay(m.verb, m.p)}`,
+        labelOf: (m) => `${m.verb.v} · ${PERSON_LABELS[m.p]}（${TENSE_LABELS[m.tense]}）→ ${answerDisplay(m.verb, m.p, m.tense)}`,
         back: { href: '#/verbs', label: '回到動詞本' },
       });
     }
@@ -195,8 +203,11 @@ function runPractice(view, ctx, { title, items, againHash }) {
   };
 }
 
-// 沒有例句時唸「du fährst」
+// 沒有例句時唸出整句，例如「du fährst」或完成式「du bist gefahren」
 function answerText(item) {
   const label = item.p === 'er' ? 'er' : item.p === 'sie' ? 'sie' : item.p;
+  if (item.tense === 'perfekt' && item.verb.perfekt) {
+    return `${label} ${auxForm(item.verb.perfekt.aux, item.p)} ${item.verb.perfekt.partizip}`;
+  }
   return `${label} ${item.verb.forms[item.p]}${item.verb.prefix ? ` ${item.verb.prefix}` : ''}`;
 }
