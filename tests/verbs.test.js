@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   PERSONS, dedupeInput, makeVerbBatches, buildVerbPrompt, parseVerbs, makeVerbCloze, pronounCloze, checkVerbAnswer,
   highlightVerb, markStemChange, mergeVerbs, formDisplay, hasWeak, buildMorePrompt, parseMoreSentences, pickCombos,
-  perfektCloze, pronounClozePerfekt, answerDisplay, weakKey, buildPerfektPrompt, parsePerfekt,
+  perfektCloze, pronounClozePerfekt, answerDisplay, weakKey, buildPerfektPrompt, parsePerfekt, practicePersons,
 } from '../js/verbs.js';
 import { ImportError } from '../js/importer.js';
 
@@ -324,6 +324,51 @@ test('補完成式：設定過去分詞、附上新例句、去重複、跳過�
   assert.ok(updates[0].sentences.every((s) => s.tense === 'perfekt'));
   assert.ok(skipped.some((s) => s.label === 'gehen'));
   assert.ok(skipped.some((s) => /du 的完成式例句/.test(s.reason)));
+});
+
+test('主詞是事物的動詞：persons 只留合理人稱，練習只出那些人稱', () => {
+  const kosten = {
+    v: 'kosten', zh: '花費', type: '規則', tip: '', prefix: null,
+    persons: ['er'], aux: 'haben', partizip: 'gekostet',
+    forms: { ich: 'koste', du: 'kostest', er: 'kostet', wir: 'kosten', ihr: 'kostet', sie: 'kosten' },
+    s: [
+      { p: 'er', tense: 'present', de: 'Das kostet 10 Euro.', zh: '' },
+      { p: 'er', tense: 'perfekt', de: 'Das hat 10 Euro gekostet.', zh: '' },
+    ],
+  };
+  const [verb] = parseVerbs(JSON.stringify([kosten])).verbs;
+  assert.deepEqual(verb.persons, ['er']);
+  assert.deepEqual(practicePersons(verb), ['er']);
+  const combos = pickCombos([verb], 20);
+  assert.deepEqual([...new Set(combos.map((c) => c.p))], ['er']); // 只出 er，不會有 ich/du…
+  assert.equal(combos.length, 2);
+  assert.deepEqual(combos.map((c) => c.tense).sort(), ['perfekt', 'present']);
+});
+
+test('persons 給全部六個或沒給：當作不限制（null），練全部人稱', () => {
+  const [all] = parseVerbs(JSON.stringify([{ ...FAHREN, persons: PERSONS }])).verbs;
+  assert.equal(all.persons, null);
+  assert.deepEqual(practicePersons(all), PERSONS);
+  const [none] = parseVerbs(JSON.stringify([FAHREN])).verbs;
+  assert.equal(none.persons, null);
+  assert.deepEqual(practicePersons(none), PERSONS);
+});
+
+test('情態動詞／möchten 不給完成式，即使 AI 回了 aux/partizip', () => {
+  const koennen = {
+    v: 'können', zh: '能夠', type: '不規則', tip: '', prefix: null,
+    aux: 'haben', partizip: 'gekonnt',
+    forms: { ich: 'kann', du: 'kannst', er: 'kann', wir: 'können', ihr: 'könnt', sie: 'können' },
+    s: [{ p: 'ich', tense: 'perfekt', de: 'Ich habe das gekonnt.', zh: '' }],
+  };
+  const [verb] = parseVerbs(JSON.stringify([koennen])).verbs;
+  assert.equal(verb.perfekt, null);
+  assert.equal(verb.sentences.length, 0); // 完成式例句被跳過（沒有完成式資料）
+
+  const { updates, skipped } = parsePerfekt(
+    JSON.stringify([{ v: 'können', aux: 'haben', partizip: 'gekonnt', s: [] }]), { können: verb });
+  assert.equal(updates.length, 0);
+  assert.match(skipped[0].reason, /情態動詞/);
 });
 
 test('同步合併：過去分詞取有資料的一方，不熟的現在式與完成式分開記', () => {

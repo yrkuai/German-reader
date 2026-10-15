@@ -8,7 +8,7 @@ import {
 } from '../storage.js';
 import {
   PERSONS, PERSON_LABELS, MIX_SIZES, dedupeInput, makeVerbBatches, buildVerbPrompt, buildMorePrompt, buildPerfektPrompt,
-  parseVerbs, parseMoreSentences, parsePerfekt, markStemChange, highlightVerb, auxForm, hasWeak,
+  parseVerbs, parseMoreSentences, parsePerfekt, markStemChange, highlightVerb, auxForm, hasWeak, NO_PERFEKT, practicePersons,
 } from '../verbs.js';
 import { ImportError } from '../importer.js';
 import { speakOnce, cancelSpeech } from '../speech.js';
@@ -200,8 +200,11 @@ function openMixSheet(verbs, ctx) {
   function update() {
     allBox.checked = keys.size === verbs.length;
     for (const b of sizeButtons) b.setAttribute('aria-checked', String(Number(b.dataset.size) === size));
-    // 有過去分詞的動詞同時出現在式和完成式（12），其餘只有現在式（6）
-    const combos = [...keys].reduce((n, k) => n + (verbs.find((v) => v.key === k)?.perfekt ? PERSONS.length * 2 : PERSONS.length), 0);
+    // 題數依每個動詞實際會練的人稱數；有過去分詞的再乘 2（現在式＋完成式）
+    const combos = [...keys].reduce((n, k) => {
+      const v = verbs.find((x) => x.key === k);
+      return v ? n + practicePersons(v).length * (v.perfekt ? 2 : 1) : n;
+    }, 0);
     countEl.textContent = keys.size ? `總練習 ${Math.min(size, combos)} 題` : '請至少勾選一個動詞';
     startBtn.disabled = !keys.size;
   }
@@ -300,7 +303,10 @@ export function renderNewVerbs(view, ctx, mode = 'new') {
     const labelOf = (v) => (mode === 'perfekt'
       ? `${v.v}${v.perfekt ? '' : '（新）'}`
       : `${v.v}（${v.sentences.length} 句）`);
-    const verbs = Object.values(loadVerbs()).sort((a, b) => a.v.localeCompare(b.v));
+    // 補完成式不列情態動詞／möchten（沒有要練的完成式）
+    const verbs = Object.values(loadVerbs())
+      .filter((v) => mode !== 'perfekt' || !NO_PERFEKT.has(v.key))
+      .sort((a, b) => a.v.localeCompare(b.v));
     const selected = new Set();
     const allBox = h('input', { type: 'checkbox' });
     const boxes = verbs.map((v) => {

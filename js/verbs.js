@@ -24,6 +24,25 @@ export const auxForm = (aux, p) => AUX_FORMS[aux]?.[p] || '';
 // 「不熟」記在「人稱＋時態」上：現在式沿用舊的 key（只有人稱），完成式加後綴
 export const weakKey = (p, tense) => (tense === 'perfekt' ? `${p}:perfekt` : p);
 
+// 這些動詞沒有要練的完成式：情態動詞（和主要動詞連用是 Doppelinfinitiv，如 hat kommen können）、
+// möchten（mögen 的 Konjunktiv，沒有自己的完成式）。遇到就一律不給完成式，不靠 AI 自覺
+export const NO_PERFEKT = new Set(['können', 'müssen', 'dürfen', 'sollen', 'wollen', 'mögen', 'möchten']);
+
+// 這個動詞的練習要用哪些人稱：主詞通常是事物的動詞（kosten、regnen…）只練合理的人稱，
+// 避免出「ich koste」這種不自然的題目。沒有特別標記（persons 為 null）就練全部六個
+export const practicePersons = (verb) => {
+  const list = Array.isArray(verb?.persons) ? PERSONS.filter((p) => verb.persons.includes(p)) : [];
+  return list.length ? list : PERSONS;
+};
+
+// 整理 AI 回的 persons：只留合法人稱、照順序；是全部六個（或空的、沒給）就回 null（代表不限制）
+function cleanPersons(raw) {
+  if (!Array.isArray(raw)) return null;
+  const set = new Set(raw.map((p) => (typeof p === 'string' ? p.trim().toLowerCase() : '')));
+  const picked = PERSONS.filter((p) => set.has(p));
+  return picked.length && picked.length < PERSONS.length ? picked : null;
+}
+
 // 每個人稱可以當主詞的字（題目裡加粗，提醒看主詞決定變化形）
 const SUBJECTS = { ich: ['ich'], du: ['du'], er: ['er', 'sie', 'es', 'man'], wir: ['wir'], ihr: ['ihr'], sie: ['sie'] };
 
@@ -90,7 +109,8 @@ export function buildVerbPrompt(verbs) {
    - er 代表 er/sie/es，sie 代表 sie/Sie
    - 可分動詞只寫變化的那一部分，不要寫前綴（aufstehen 的 ich 寫 "stehe"）
 7. "aux"：現在完成式用的助動詞，"haben" 或 "sein" 二選一（移動或狀態改變的動詞用 sein，例如 fahren、gehen、aufstehen）
-8. "partizip"：過去分詞（Partizip II）
+   - 情態動詞（können、müssen、dürfen、sollen、wollen、mögen、möchten）和沒有一般完成式的動詞：aux 填 null
+8. "partizip"：過去分詞（Partizip II）；沒有完成式時填 null
    - 弱變化通常是 ge...t（machen → gemacht），強變化常是 ge...en 並換母音（fahren → gefahren）
    - 不可分前綴（be-、ver-、er-、ent-…）和 -ieren 結尾的動詞沒有 ge-（verstehen → verstanden，studieren → studiert）
    - 可分動詞的 ge 夾在中間，寫成一個字（aufstehen → aufgestanden）
@@ -111,6 +131,9 @@ export function buildVerbPrompt(verbs) {
 
 規則：
 - 只用現在式和現在完成式（Perfekt），不要用其他時態（不要用 Präteritum 過去式）
+- 情態動詞和沒有一般完成式的動詞（möchten 等）：aux 和 partizip 都填 null，s 裡只給現在式例句，不要給完成式例句
+- 每一句只用這一個動詞本身，不要和別的動詞混用；完成式句子裡的過去分詞要和 partizip 完全一樣
+- "persons"：這個動詞自然會用到的人稱陣列。一般動詞填全部 ["ich","du","er","wir","ihr","sie"]；主詞通常是事物的動詞只填合理的人稱（天氣動詞 regnen「下雨」填 ["er"]；kosten「花費」填 ["er","sie"]，因為主詞是單數或複數的東西）。forms 仍填六個，但例句（s）只為 persons 裡的人稱產生，絕對不要硬湊不自然的人稱（例如不要寫 "ich koste"）
 - 只回傳 JSON 陣列，不要任何其他文字，不要用 Markdown
 
 格式範例：
@@ -121,6 +144,7 @@ export function buildVerbPrompt(verbs) {
     "type": "換母音",
     "tip": "du 和 er/sie/es 的 a 變成 ä",
     "prefix": null,
+    "persons": ["ich", "du", "er", "wir", "ihr", "sie"],
     "forms": { "ich": "fahre", "du": "fährst", "er": "fährt", "wir": "fahren", "ihr": "fahrt", "sie": "fahren" },
     "aux": "sein",
     "partizip": "gefahren",
@@ -256,7 +280,8 @@ export function parseVerbs(raw, existingKeys = new Set(), now = Date.now()) {
       tip: clean(item?.tip),
       prefix: LETTERS.test(prefix) ? prefix : null,
       tense: 'present',
-      perfekt: parsePerfektForm(item),
+      perfekt: NO_PERFEKT.has(key) ? null : parsePerfektForm(item),
+      persons: cleanPersons(item?.persons),
       forms,
       sentences: [],
       weak: {},
@@ -378,6 +403,7 @@ export function normalizeVerb(v) {
   return {
     ...v,
     perfekt: v.perfekt || null,
+    persons: v.persons || null,
     sentences: [...(v.sentences || [])].map((s) => ({ ...s, tense: tenseOf(s) })).sort(sentenceSort),
     weak: { ...(v.weak || {}) },
   };
@@ -403,6 +429,7 @@ export function mergeVerbs(a, b) {
   return normalizeVerb({
     ...newer,
     perfekt: newer.perfekt || older.perfekt || null,
+    persons: newer.persons || older.persons || null,
     sentences,
     weak,
     createdAt: Math.min(a.createdAt || Infinity, b.createdAt || Infinity),
@@ -423,6 +450,7 @@ export function buildMorePrompt(verbs) {
 
 請為下面每個動詞，每個人稱（ich、du、er、wir、ihr、sie）各再給 2 句新的例句。
 - 不可以和「現有例句」重複，也不要只換一個字
+- 主詞通常是事物的動詞（kosten、regnen…）只為合理的人稱造句（通常 er/sie/es），不要硬湊 ich/du/wir
 - 德文母語者日常真的會說的口語句子，不要課本式的造句
 - 長短不限，難度靠字彙控制：用常見的字，一句裡不常見的字最多一兩個
 - 同一個人稱的 2 句：1 句是簡短的口語反應或問句，1 句是比較完整的日常句子
@@ -496,6 +524,8 @@ export function buildPerfektPrompt(verbs) {
 
 規則：
 - 只用現在完成式（Perfekt），不要用其他時態
+- 每一句只用這一個動詞本身，不要和別的動詞混用；句子裡的過去分詞要和 partizip 完全一樣
+- 主詞通常是事物的動詞（例如 kosten）：例句主詞用事物（Das hat 10 Euro gekostet），只給合理的人稱（通常 er/sie/es），不要硬湊 ich/du/wir
 - 只回傳 JSON 陣列，不要任何其他文字，不要用 Markdown
 
 格式：
@@ -518,6 +548,10 @@ export function parsePerfekt(raw, verbs) {
     const verb = v ? verbs[verbKey(v)] : null;
     if (!verb) {
       skipped.push({ label: v || '（沒有動詞）', reason: '不是已經建立的動詞' });
+      continue;
+    }
+    if (NO_PERFEKT.has(verb.key)) {
+      skipped.push({ label: verb.v, reason: '情態動詞／möchten 沒有要練的完成式（口語用其他說法）' });
       continue;
     }
     const perfekt = parsePerfektForm(item) || verb.perfekt || null;
@@ -559,7 +593,7 @@ function shuffle(list, random) {
 export function pickCombos(verbs, n, random = Math.random) {
   const all = verbs.flatMap((v) => {
     const tenses = v.perfekt ? TENSES : ['present'];
-    return tenses.flatMap((tense) => PERSONS.map((p) => ({ key: v.key, p, tense, weak: !!v.weak?.[weakKey(p, tense)]?.weak })));
+    return tenses.flatMap((tense) => practicePersons(v).map((p) => ({ key: v.key, p, tense, weak: !!v.weak?.[weakKey(p, tense)]?.weak })));
   });
   const picked = shuffle(all.filter((c) => c.weak), random).slice(0, n);
   const byPerson = new Map(PERSONS.map((p) => [p, shuffle(all.filter((c) => !c.weak && c.p === p), random)]));

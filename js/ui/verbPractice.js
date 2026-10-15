@@ -3,8 +3,8 @@ import { icon } from './icons.js';
 import { showSummary, translateToggle } from './review.js';
 import { loadSettings, loadVerbs, setVerbWeak } from '../storage.js';
 import {
-  PERSONS, PERSON_LABELS, TENSES, TENSE_LABELS, makeVerbCloze, pronounCloze, perfektCloze, pronounClozePerfekt,
-  checkVerbAnswer, answerDisplay, auxForm, weakKey, pickCombos,
+  PERSON_LABELS, TENSES, TENSE_LABELS, makeVerbCloze, pronounCloze, perfektCloze, pronounClozePerfekt,
+  checkVerbAnswer, answerDisplay, auxForm, weakKey, pickCombos, practicePersons,
 } from '../verbs.js';
 import { pickSession, createRound } from '../vocab.js';
 import { speakOnce, cancelSpeech } from '../speech.js';
@@ -32,7 +32,7 @@ export function renderVerbPractice(view, key, ctx) {
     return;
   }
   const tenses = verb.perfekt ? TENSES : ['present'];
-  const combos = tenses.flatMap((t) => PERSONS.map((p) => ({ p, tense: t })));
+  const combos = tenses.flatMap((t) => practicePersons(verb).map((p) => ({ p, tense: t })));
   const items = pickSession(combos, Infinity).map(({ p, tense }) => makeItem(verb, p, tense));
   return runPractice(view, ctx, {
     title: verb.v,
