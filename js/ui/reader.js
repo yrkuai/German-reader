@@ -3,11 +3,12 @@ import { icon } from './icons.js';
 import {
   getArticle, deleteArticle, setLastIndex, loadSettings, saveSettings, loadVocab, markWord, unmarkWord, refreshStoredVocab,
 } from '../storage.js';
-import { buildMarkIndex, findMarked, vocabKey, displayOf } from '../vocab.js';
+import { buildMarkIndex, findMarked, vocabKey, displayOf, diffWords } from '../vocab.js';
 import { tokenize } from '../segmenter.js';
 import { createPlayer, RATES, formatRate, speechSupported, getGermanVoices, onVoicesChanged } from '../speech.js';
 import { untranslated, formatRanges, lookupWord, grammarLine } from '../importer.js';
 import { openWordSheet } from './wordSheet.js';
+import { keepAboveKeyboard } from './keyboard.js';
 import { showToast } from './toast.js';
 
 export function renderReader(view, id, ctx) {
@@ -29,6 +30,7 @@ export function renderReader(view, id, ctx) {
   const total = article.sentences.length;
   let shownIndex = -1;
   let shownPlaying = false;
+  let dictation = false; // 聽寫模式：關閉德文、打出聽到的（不存檔，重開文章預設關閉）
 
   // 標記過的單字加底線（所有文章都會標出來）
   let markIndex = buildMarkIndex(refreshStoredVocab());
@@ -38,29 +40,70 @@ export function renderReader(view, id, ctx) {
     for (const w of wordEls) w.el.classList.toggle('is-marked', !!findMarked(markIndex, w.info, w.form));
   }
 
-  const cards = article.sentences.map((s, i) =>
-    h('li', {
+  const cards = article.sentences.map((s, i) => {
+    const deP = h('p', { class: 'de', lang: 'de' },
+      tokenize(s.de).map((t) => {
+        if (!t.word) return t.text;
+        const info = lookupWord(s.words, t.text);
+        const el = h('span', {
+          class: findMarked(markIndex, info, t.text) ? 'w is-marked' : 'w',
+          onclick: (e) => { e.stopPropagation(); openWord(el, t.text, s, i); },
+        }, t.text);
+        wordEls.push({ el, info, form: t.text });
+        return el;
+      }),
+    );
+
+    // ---------- 聽寫：德文藏起來，聽音打出整句，對答案逐字標對/錯 ----------
+    const input = h('input', {
+      class: 'input dictation-input', type: 'text', lang: 'de', autocomplete: 'off',
+      autocapitalize: 'off', autocorrect: 'off', spellcheck: false, enterkeyhint: 'done',
+      'aria-label': `第 ${i + 1} 句：打出你聽到的`,
+    });
+    const result = h('div', { class: 'dictation-result', 'aria-live': 'polite' });
+    const checkBtn = h('button', { class: 'btn btn-primary dictation-check', type: 'button' }, '對答案');
+    const retryBtn = h('button', { class: 'btn dictation-retry', type: 'button', hidden: true }, '重試');
+
+    function check() {
+      if (input.disabled) return;
+      const diff = diffWords(input.value, s.de);
+      const answer = h('p', { class: 'dictation-answer', lang: 'de' },
+        diff.words
+          .flatMap((w, k) => [k ? ' ' : null, h('span', { class: w.ok ? 'dw' : 'dw is-wrong' }, w.text)])
+          .filter((x) => x != null));
+      // 只在全對時給一行正向回饋；答錯就靠紅字本身，不再多一行說明文字
+      result.replaceChildren(...(diff.correct ? [answer, h('p', { class: 'ok' }, '✓ 全對')] : [answer]));
+      input.disabled = true;
+      checkBtn.hidden = true;
+      retryBtn.hidden = false;
+    }
+    function retry() {
+      result.replaceChildren();
+      input.disabled = false;
+      checkBtn.hidden = false;
+      retryBtn.hidden = true;
+      input.focus({ preventScroll: true });
+    }
+    checkBtn.addEventListener('click', check);
+    retryBtn.addEventListener('click', retry);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); check(); }
+    });
+
+    // 點輸入框或按鈕不要觸發整句播放（句子本身的 onclick）
+    const dictationBox = h('div', { class: 'dictation-box', onclick: (e) => e.stopPropagation() },
+      h('div', { class: 'row dictation-row' }, input, checkBtn, retryBtn),
+      result,
+    );
+
+    return h('li', {
       class: 'sentence', 'data-index': i,
       onclick: () => (player.state.mode === 'all' ? player.goTo(i) : player.loop(i)),
     },
       h('span', { class: 'sentence-no', 'aria-hidden': 'true' }, i + 1),
-      h('div', { class: 'sentence-body' },
-        h('p', { class: 'de', lang: 'de' },
-          tokenize(s.de).map((t) => {
-            if (!t.word) return t.text;
-            const info = lookupWord(s.words, t.text);
-            const el = h('span', {
-              class: findMarked(markIndex, info, t.text) ? 'w is-marked' : 'w',
-              onclick: (e) => { e.stopPropagation(); openWord(el, t.text, s, i); },
-            }, t.text);
-            wordEls.push({ el, info, form: t.text });
-            return el;
-          }),
-        ),
-        s.zh ? h('p', { class: 'zh' }, s.zh) : null,
-      ),
-    ),
-  );
+      h('div', { class: 'sentence-body' }, deP, s.zh ? h('p', { class: 'zh' }, s.zh) : null, dictationBox),
+    );
+  });
 
   // ---------- 底部播放列 ----------
   const status = h('span', { class: 'player-status', 'aria-live': 'polite' });
@@ -127,6 +170,25 @@ export function renderReader(view, id, ctx) {
   }
   ctx.addBarAction(zhToggle);
   applyZh();
+
+  // ---------- 聽寫模式開關：關閉德文，打出聽到的 ----------
+  const dictToggle = h('button', {
+    class: 'zh-toggle', type: 'button',
+    onclick: () => {
+      dictation = !dictation;
+      if (dictation) player.stop(); // 進聽寫先停掉播放，避免整篇循環干擾打字
+      applyDictation();
+    },
+  }, icon('pencil'));
+  function applyDictation() {
+    sentenceList.classList.toggle('dictation', dictation);
+    dictToggle.setAttribute('aria-pressed', String(dictation));
+    const label = dictation ? '離開聽寫' : '聽寫：關閉德文，打出聽到的';
+    dictToggle.title = label;
+    dictToggle.setAttribute('aria-label', label);
+  }
+  ctx.addBarAction(dictToggle);
+  applyDictation();
 
   // ---------- 點單字：中斷播放、唸單字、顯示意思；關閉後回到原本的播放 ----------
   let closeSheet = null;
@@ -270,11 +332,15 @@ export function renderReader(view, id, ctx) {
   const flash = ctx.takeFlash();
   if (flash) showToast(flash);
 
+  // 聽寫輸入框聚焦時，把它維持在鍵盤上方（手機）
+  const releaseKeyboard = keepAboveKeyboard(view);
+
   return () => {
     closeSheet?.();
     player.destroy();
     stopWatchingVoices();
     clearTimeout(voiceCheckTimer);
+    releaseKeyboard();
     document.documentElement.style.setProperty('--player-h', '0px');
   };
 }

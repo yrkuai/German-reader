@@ -455,6 +455,17 @@ select.input { appearance: auto; }
 }
 .hide-zh .zh { display: none; }
 
+/* 聽寫模式：關閉德文，打出聽到的，對答案逐字標對/錯 */
+.sentences.dictation .de { display: none; }
+.dictation-box { display: none; margin-top: 8px; }
+.sentences.dictation .dictation-box { display: block; }
+.dictation-row { gap: 8px; align-items: center; flex-wrap: wrap; }
+.dictation-input { flex: 1 1 10rem; min-width: 0; }
+.dictation-row .ctrl, .dictation-row .btn { flex: none; }
+.dictation-result { margin-top: 8px; }
+.dictation-answer { margin: 0 0 4px; font-size: 17px; line-height: 1.6; }
+.dictation-answer .dw.is-wrong { color: var(--danger); text-decoration: underline wavy; font-weight: 600; }
+
 /* 翻譯按鈕：開啟＝主色填滿；關閉＝灰底、灰色圖示 */
 .zh-toggle {
   display: grid;

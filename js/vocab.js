@@ -224,6 +224,38 @@ export function checkAnswer(input, { answer, sentenceStart }) {
   return caseMatters ? 'case' : 'ok';
 }
 
+// ---------- 聽寫對答案 ----------
+
+// 把打出來的句子和正解逐字比對。用 LCS 對齊，所以漏一個字不會讓後面整排變錯。
+// 比對時：忽略標點（只比單字）、變音可用 ae/oe/ue/ss（fold）、大小寫要一致。
+// 回傳 { words: [{ text, ok }]（對應正解的每個字）, correct, extra（多打了幾個字）}
+export function diffWords(typed, answer) {
+  const words = (s) => tokenize(s).filter((t) => t.word).map((t) => t.text);
+  const a = words(answer);
+  const b = words(typed);
+  const eq = (x, y) => fold(x) === fold(y);
+  const n = a.length;
+  const m = b.length;
+  // dp[i][j]＝a[i..]、b[j..] 的最長共同子序列長度
+  const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      dp[i][j] = eq(a[i], b[j]) ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    }
+  }
+  const result = a.map((w) => ({ text: w, ok: false }));
+  let i = 0;
+  let j = 0;
+  let extra = 0;
+  while (i < n && j < m) {
+    if (eq(a[i], b[j])) { result[i].ok = true; i++; j++; }
+    else if (dp[i + 1][j] >= dp[i][j + 1]) { i++; }  // 正解這個字沒被對到（錯或漏）
+    else { j++; extra++; }                            // 打的這個字是多的
+  }
+  extra += m - j;
+  return { words: result, correct: result.every((w) => w.ok) && extra === 0, extra };
+}
+
 // ---------- 一輪練習 ----------
 
 // 答錯的放回這一輪的最後面，每個都答對過一次才結束。

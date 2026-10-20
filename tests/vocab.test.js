@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   vocabKey, displayOf, buildMarkIndex, findMarked, mergeEntries, refreshVocab, describe, pickSession, highlightTokens, pluralNote, makeCloze, checkAnswer, createRound,
-  dayKey, addDays, nextSrs, pickDaily,
+  dayKey, addDays, nextSrs, pickDaily, diffWords,
 } from '../js/vocab.js';
 import { lookupWord } from '../js/importer.js';
 
@@ -266,4 +266,41 @@ test('一輪練習可以一步步復原：答錯放到最後的會拿回來，�
   round.answer(true);
   assert.equal(round.firstTryCorrect(), 2);
   assert.deepEqual(round.firstTryWrong(), []);
+});
+
+// ---------- 聽寫對答案 ----------
+
+test('聽寫逐字比對：忽略標點、變音容錯、大小寫要算', () => {
+  // 完全正確（標點不同也算對）
+  const ok = diffWords('Ich gehe nach Hause', 'Ich gehe nach Hause.');
+  assert.ok(ok.correct);
+  assert.ok(ok.words.every((w) => w.ok));
+  assert.equal(ok.extra, 0);
+
+  // 變音可用 ae/oe/ue/ss
+  assert.ok(diffWords('Ich moechte Fuesse', 'Ich möchte Füße').correct);
+
+  // 大小寫要算：名詞小寫 → 那個字算錯
+  const caseWrong = diffWords('Ich gehe nach hause.', 'Ich gehe nach Hause.');
+  assert.equal(caseWrong.correct, false);
+  assert.equal(caseWrong.words.find((w) => w.text === 'Hause').ok, false);
+  assert.ok(caseWrong.words.find((w) => w.text === 'gehe').ok);
+});
+
+test('聽寫逐字比對：漏字只標那一個、多字計入 extra、用 LCS 對齊', () => {
+  // 漏掉中間一個字：其餘仍對（LCS 對齊，不會整排變紅）
+  const missing = diffWords('Ich nach Hause', 'Ich gehe nach Hause');
+  assert.deepEqual(missing.words.map((w) => w.ok), [true, false, true, true]);
+  assert.equal(missing.correct, false);
+
+  // 多打一個字
+  const extra = diffWords('Ich gehe schnell nach Hause', 'Ich gehe nach Hause');
+  assert.ok(extra.words.every((w) => w.ok));
+  assert.equal(extra.extra, 1);
+  assert.equal(extra.correct, false);
+
+  // 完全沒打
+  const empty = diffWords('', 'Ich gehe.');
+  assert.equal(empty.correct, false);
+  assert.ok(empty.words.every((w) => !w.ok));
 });
