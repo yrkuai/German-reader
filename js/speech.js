@@ -11,6 +11,7 @@ export function formatRate(rate) {
 }
 
 const ALL_GAP_MS = 300;        // 整篇播放時句子之間的停頓
+const LOOP_GAP_MS = 1000;      // 整篇循環時，最後一句回到第一句之間的停頓
 const KEEPALIVE_MS = 10000;    // Chrome 桌機版唸超過約 15 秒會自己停，長句子定期 pause/resume
 const KEEPALIVE_MIN_CHARS = 150;
 
@@ -141,10 +142,12 @@ export function createPlayer({ sentences, settings, startIndex = 0, onChange }) 
         phase = 'pause';
         emit();
         timer = setTimeout(run, settings.pauseMs);
-      } else if (mode === 'all' && index < sentences.length - 1) {
+      } else if (mode === 'all') {
+        // 整篇循環：還沒到最後一句就接下一句（300ms）；最後一句結束停 1 秒回到第一句，無限循環
+        const last = index >= sentences.length - 1;
         phase = 'pause';
         emit();
-        timer = setTimeout(() => { index++; run(); }, ALL_GAP_MS);
+        timer = setTimeout(() => { index = last ? 0 : index + 1; run(); }, last ? LOOP_GAP_MS : ALL_GAP_MS);
       } else {
         mode = 'idle';
         phase = 'idle';
