@@ -1,4 +1,4 @@
-import { h } from './dom.js';
+import { h, speedPlayPill } from './dom.js';
 import { icon } from './icons.js';
 import { loadSettings, saveSettings, loadVocab, sentenceLookup, setWeak, answerFlashcard, undoFlashcard } from '../storage.js';
 import {
@@ -229,7 +229,7 @@ export function showSummary(body, ctx, round, againHash, {
 export function renderCloze(view, ctx) {
   ctx.setBar('例句填空', '#/words');
   const settings = loadSettings();
-  // 聽整句預設用快速 1.0x；「慢速」鍵用 0.7x，幫助聽清楚。兩者都不改全域語速，也不存檔
+  // 聽整句膠囊：左半一般 1.0x、右半慢速 0.7x，幫助聽清楚。兩者都不改全域語速，也不存檔
   const speak = (text, rate = 1.0) => speakOnce(text, { voiceURI: settings.voiceURI, rate });
 
   const pool = practicePool(settings);
@@ -272,12 +272,7 @@ export function renderCloze(view, ctx) {
       input.focus({ preventScroll: true });
     },
   }, '提示');
-  const playBtn = h('button', {
-    class: 'btn btn-icon-text', type: 'button', onclick: () => speak(q.de),
-  }, icon('speaker'), '聽整句');
-  const slowBtn = h('button', {
-    class: 'btn btn-icon-text', type: 'button', onclick: () => speak(q.de, 0.7),
-  }, icon('speaker'), '慢速');
+  const playPill = speedPlayPill((rate) => speak(q.de, rate));
   const input = h('input', {
     class: 'input cloze-input', type: 'text', lang: 'de', autocomplete: 'off', autocapitalize: 'off', spellcheck: false,
     autocorrect: 'off', enterkeyhint: 'done', 'aria-label': '填入空格的單字',
@@ -294,8 +289,8 @@ export function renderCloze(view, ctx) {
   const body = h('div', { class: 'stack' },
     h('div', { class: 'row row-between' }, h('span', { class: 'hint' }, '填入句子裡原本的寫法'), progress),
     h('div', { class: 'cloze-card stack' }, sentenceEl, zhEl, hintEl),
-    // 依透露答案的多寡排列：聽整句（快）→ 慢速 → 翻譯 → 提示
-    h('div', { class: 'row quiz-tools' }, playBtn, slowBtn, zhToggle, hintBtn),
+    // 依透露答案的多寡排列：聽整句（左快右慢）→ 翻譯 → 提示
+    h('div', { class: 'row quiz-tools' }, playPill, zhToggle, hintBtn),
     h('div', { class: 'row' }, input, checkBtn),
     feedback,
     h('div', { class: 'actions' }, nextBtn),

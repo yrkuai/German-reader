@@ -1,5 +1,4 @@
-import { h } from './dom.js';
-import { icon } from './icons.js';
+import { h, speedPlayPill } from './dom.js';
 import { showSummary, translateToggle } from './review.js';
 import { loadSettings, loadVerbs, setVerbWeak } from '../storage.js';
 import {
@@ -58,7 +57,7 @@ export function renderVerbMix(view, ctx) {
 function runPractice(view, ctx, { title, items, againHash }) {
   ctx.setBar(title, '#/verbs');
   const settings = loadSettings();
-  // 聽整句預設用快速 1.0x；「慢速」鍵用 0.7x，幫助聽清楚。兩者都不改全域語速，也不存檔
+  // 聽整句膠囊：左半一般 1.0x、右半慢速 0.7x，幫助聽清楚。兩者都不改全域語速，也不存檔
   const speak = (text, rate = 1.0) => speakOnce(text, { voiceURI: settings.voiceURI, rate });
   const round = createRound(items);
 
@@ -87,12 +86,7 @@ function runPractice(view, ctx, { title, items, againHash }) {
       inputs[0].focus({ preventScroll: true });
     },
   }, '提示');
-  const playBtn = h('button', {
-    class: 'btn btn-icon-text', type: 'button', onclick: () => speak(q.de || answerText(item)),
-  }, icon('speaker'), '聽整句');
-  const slowBtn = h('button', {
-    class: 'btn btn-icon-text', type: 'button', onclick: () => speak(q.de || answerText(item), 0.7),
-  }, icon('speaker'), '慢速');
+  const playPill = speedPlayPill((rate) => speak(q.de || answerText(item), rate));
 
   // 可分動詞兩個輸入框；一般動詞一個
   const makeInput = (label) => h('input', {
@@ -115,8 +109,8 @@ function runPractice(view, ctx, { title, items, againHash }) {
   const body = h('div', { class: 'stack' },
     h('div', { class: 'row verb-progress' }, progress),
     h('div', { class: 'cloze-card stack' }, sentenceEl, zhEl, hintEl),
-    // 依透露答案的多寡排列：聽整句（快）→ 慢速 → 翻譯 → 提示
-    h('div', { class: 'row quiz-tools' }, playBtn, slowBtn, zhToggle, hintBtn),
+    // 依透露答案的多寡排列：聽整句（左快右慢）→ 翻譯 → 提示
+    h('div', { class: 'row quiz-tools' }, playPill, zhToggle, hintBtn),
     h('div', { class: 'row' }, inputRow, checkBtn),
     feedback,
     h('div', { class: 'actions' }, nextBtn),
