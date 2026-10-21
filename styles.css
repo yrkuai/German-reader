@@ -928,7 +928,7 @@ select.input { appearance: auto; }
 .speed-half:hover { background: var(--surface-2); }
 .speed-half .icon svg { width: 18px; height: 18px; }
 .speed-slow { border-left: 1px solid var(--hairline); }
-.speed-tag { font-size: 12px; font-weight: 600; color: var(--ink-muted); }
+.speed-tag { font-size: 15px; font-weight: 500; color: var(--ink); }
 
 /* ---------- 動詞 ---------- */
 .verb-meta { margin-left: 8px; color: var(--ink-muted); font-size: 15px; font-weight: 400; letter-spacing: 0; }
