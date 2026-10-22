@@ -354,6 +354,31 @@ select.input { appearance: auto; }
   cursor: pointer;
 }
 .swipe-delete .icon svg { width: 20px; height: 20px; }
+/* 文章列：編輯＋刪除兩顆並排，靠右露出（刪除在容器內改用靜態定位） */
+.swipe-actions {
+  position: absolute;
+  top: 50%;
+  right: var(--gutter);
+  transform: translateY(-50%);
+  display: flex;
+  gap: 8px;
+}
+.swipe-actions .swipe-delete { position: static; transform: none; }
+.swipe-edit {
+  height: 40px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--r-pill);
+  display: grid;
+  place-items: center;
+  background: var(--surface-2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.swipe-edit .icon svg { width: 20px; height: 20px; }
 .article-item {
   position: relative;
   display: flex;

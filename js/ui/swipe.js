@@ -28,12 +28,14 @@ export function createSwipeGroup() {
     // 需要滑開的距離：刪除按鈕的寬度＋它右邊的頁面邊距＋空隙
     const actionWidth = () => row.getBoundingClientRect().right - action.getBoundingClientRect().left + ACTION_GAP;
 
+    // action 可以是單顆按鈕，也可以是包著多顆按鈕的容器（例如編輯＋刪除）
+    const actionButtons = action.matches('button') ? [action] : [...action.querySelectorAll('button')];
     const setOffset = (value, animate) => {
       offset = value;
       content.classList.toggle('is-dragging', !animate);
       content.style.transform = value ? `translateX(${value}px)` : '';
       const open = value !== 0;
-      action.tabIndex = open ? 0 : -1;
+      for (const btn of actionButtons) btn.tabIndex = open ? 0 : -1;
       action.setAttribute('aria-hidden', String(!open));
     };
 

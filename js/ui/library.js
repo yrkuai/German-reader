@@ -57,6 +57,54 @@ export function renderLibrary(view, ctx) {
     });
   }
 
+  // 只改標題（不動內容）。空白就比照新增：回退成第一句的前 40 字
+  function openRename(article) {
+    const previousFocus = document.activeElement;
+    const input = h('input', {
+      class: 'input', type: 'text', value: article.title,
+      'aria-label': '文章標題', maxlength: 200, enterkeyhint: 'done',
+    });
+    const cancelBtn = h('button', { class: 'btn', type: 'button' }, '取消');
+    const saveBtn = h('button', { class: 'btn btn-primary', type: 'button' }, '儲存');
+    const panel = h('div', { class: 'dialog stack', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'rename-title' },
+      h('h2', { class: 'card-title', id: 'rename-title' }, '編輯標題'),
+      input,
+      h('div', { class: 'actions' }, cancelBtn, saveBtn),
+    );
+    const backdrop = h('div', { class: 'dialog-backdrop' }, panel);
+
+    let closed = false;
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      document.removeEventListener('keydown', onKey);
+      backdrop.classList.remove('is-open');
+      setTimeout(() => backdrop.remove(), 200);
+      previousFocus?.focus?.({ preventScroll: true });
+    };
+    function submit() {
+      const first = article.sentences[0]?.de || '';
+      article.title = input.value.trim() || truncate(first, 40) || article.title;
+      const ok = saveArticle(article);
+      close();
+      if (ok) rerender();
+      else showToast('無法存檔（可能是無痕模式或空間已滿）');
+    }
+    function onKey(e) {
+      if (e.key === 'Escape') close();
+      else if (e.key === 'Enter' && e.target === input) { e.preventDefault(); submit(); }
+    }
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
+    cancelBtn.addEventListener('click', close);
+    saveBtn.addEventListener('click', submit);
+    document.addEventListener('keydown', onKey);
+
+    document.body.append(backdrop);
+    requestAnimationFrame(() => backdrop.classList.add('is-open'));
+    input.focus({ preventScroll: true });
+    input.select();
+  }
+
   for (const a of articles) {
     const translated = a.sentences.filter((s) => s.zh).length;
     const status = translated === 0
@@ -66,10 +114,13 @@ export function renderLibrary(view, ctx) {
       h('span', { class: 'article-title' }, a.title),
       h('span', { class: 'article-meta' }, `${a.sentences.length} 句 · ${status} · ${formatDate(a.createdAt)}`),
     );
-    const action = h('button', { class: 'swipe-delete', type: 'button', 'aria-label': `刪除「${a.title}」` }, icon('trash'));
-    const li = h('li', { class: 'swipe-row' }, action, content);
-    action.addEventListener('click', () => remove(a, li));
-    swipe.attach(li, content, action);
+    const editBtn = h('button', { class: 'swipe-edit', type: 'button', 'aria-label': `編輯「${a.title}」標題` }, icon('pencil'));
+    const deleteBtn = h('button', { class: 'swipe-delete', type: 'button', 'aria-label': `刪除「${a.title}」` }, icon('trash'));
+    const actions = h('div', { class: 'swipe-actions' }, editBtn, deleteBtn);
+    const li = h('li', { class: 'swipe-row' }, actions, content);
+    editBtn.addEventListener('click', () => openRename(a));
+    deleteBtn.addEventListener('click', () => remove(a, li));
+    swipe.attach(li, content, actions);
     list.append(li);
   }
 
